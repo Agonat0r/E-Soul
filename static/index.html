@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Soul Trait Evolution (Live)</title>
-  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.27.1.min.js"></script>
   <style>
     :root {
       --bg: #f6f8fa; --fg: #222; --panel: #fff; --panel-alt: #e9eef3;
@@ -701,14 +701,22 @@
           offsetX = e.offsetX;
           offsetY = e.offsetY;
           document.body.style.cursor = 'move';
+          window._draggedMod = idx;
+          e.preventDefault(); // Prevent text selection while dragging
         };
-        document.onmouseup = function() { isDragging = false; document.body.style.cursor = ''; };
+        document.onmouseup = function() { 
+          isDragging = false; 
+          document.body.style.cursor = ''; 
+          window._draggedMod = null; 
+        };
         document.onmousemove = function(e) {
-          if (isDragging) {
-            mod.x = Math.max(0, Math.min(e.pageX - protoCanvas.getBoundingClientRect().left - offsetX, protoCanvas.offsetWidth-mod.width));
-            mod.y = Math.max(0, Math.min(e.pageY - protoCanvas.getBoundingClientRect().top - offsetY, protoCanvas.offsetHeight-30));
+          if (isDragging && window._draggedMod === idx) {
+            const rect = protoCanvas.getBoundingClientRect();
+            mod.x = Math.max(0, Math.min(e.clientX - rect.left - offsetX, rect.width - mod.width));
+            mod.y = Math.max(0, Math.min(e.clientY - rect.top - offsetY, rect.height - 30));
             renderProtoModules();
             renderProtoWires();
+            e.preventDefault(); // Prevent text selection while dragging
           }
         };
         modEl.onmouseenter = () => { modEl.querySelector('.delete-btn').style.display = 'inline'; };
@@ -1192,14 +1200,21 @@
           offsetY = e.offsetY;
           document.body.style.cursor = 'move';
           window._draggedMod = idx;
+          e.preventDefault(); // Prevent text selection while dragging
         };
-        document.onmouseup = function() { isDragging = false; document.body.style.cursor = ''; window._draggedMod = null; };
+        document.onmouseup = function() { 
+          isDragging = false; 
+          document.body.style.cursor = ''; 
+          window._draggedMod = null; 
+        };
         document.onmousemove = function(e) {
           if (isDragging && window._draggedMod === idx) {
-            mod.x = Math.max(0, Math.min(e.pageX - protoCanvas.getBoundingClientRect().left - offsetX, protoCanvas.offsetWidth-mod.width));
-            mod.y = Math.max(0, Math.min(e.pageY - protoCanvas.getBoundingClientRect().top - offsetY, protoCanvas.offsetHeight-30));
+            const rect = protoCanvas.getBoundingClientRect();
+            mod.x = Math.max(0, Math.min(e.clientX - rect.left - offsetX, rect.width - mod.width));
+            mod.y = Math.max(0, Math.min(e.clientY - rect.top - offsetY, rect.height - 30));
             renderProtoModules();
             renderProtoWires();
+            e.preventDefault(); // Prevent text selection while dragging
           }
         };
         modEl.onmouseenter = () => { modEl.querySelector('.delete-btn').style.display = 'inline'; };
