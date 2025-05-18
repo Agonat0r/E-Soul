@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Soul Trait Live Plot</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    body { background:#222; color:#fff; font-family:sans-serif; }
+    #plot { width:900px; height:600px; margin-bottom: 30px; }
+    #terminal {
+      background: #111;
+      color: #0f0;
+      font-family: 'Courier New', Courier, monospace;
+      padding: 20px;
+      border-radius: 8px;
+      min-height: 120px;
+      max-width: 900px;
+      margin: 0 auto;
+      white-space: pre-line;
+    }
+  </style>
+</head>
+<body>
+  <h1>Soul Trait Evolution (Live)</h1>
+  <div id="plot"></div>
+  <div id="terminal">Waiting for data...</div>
+  <script>
+    let history = [];
+    let traitNames = ["empathy", "curiosity", "self_awareness"];
+    let ws = new WebSocket("wss://" + window.location.host + "/ws");
+
+    function interpret(traits, names) {
+      // Simple interpretation logic, you can make this as complex as you want!
+      let [e, c, s] = traits;
+      let lines = [
+        `Empathy:        ${e.toFixed(2)}`,
+        `Curiosity:      ${c.toFixed(2)}`,
+        `Self-Awareness: ${s.toFixed(2)}`
+      ];
+      let summary = "";
+      if (e > 0.8 && c > 0.8 && s > 0.8) {
+        summary = "🌟 The soul is approaching an ideal, enlightened state!";
+      } else if (e < 0.3 || c < 0.3 || s < 0.3) {
+        summary = "⚠️ The soul is struggling in one or more areas.";
+      } else {
+        summary = "The soul is evolving and balancing its traits.";
+      }
+      return lines.join('\n') + "\n\n" + summary;
+    }
+
+    ws.onmessage = function(event) {
+      let data = JSON.parse(event.data);
+      let traits = data.traits;
+      traitNames = data.trait_names;
+      history = data.history;
+
+      // Update plot
+      let xs = history.map(h => h[0]);
+      let ys = history.map(h => h[1]);
+      let zs = history.map(h => h[2]);
+      let trace = {
+        x: xs, y: ys, z: zs,
+        mode: 'lines+markers',
+        type: 'scatter3d',
+        marker: { size: 6, color: 'blue' },
+        line: { color: 'blue', width: 4 },
+        name: 'Evolving Soul'
+      };
+      let layout = {
+        title: "Soul Vector Evolution",
+        scene: {
+          xaxis: { title: traitNames[0], range: [0, 1] },
+          yaxis: { title: traitNames[1], range: [0, 1] },
+          zaxis: { title: traitNames[2], range: [0, 1] }
+        }
+      };
+      Plotly.newPlot('plot', [trace], layout);
+
+      // Update terminal
+      document.getElementById('terminal').textContent = interpret(traits, traitNames);
+    };
+  </script>
+</body>
+</html> 
