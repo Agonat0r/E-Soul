@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soul Simulation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .panel {
+            background: #2a2a2a;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .terminal {
+            grid-column: 1 / -1;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', Courier, monospace;
+            background: #000;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .terminal-line {
+            margin: 5px 0;
+            color: #00ff00;
+        }
+        .traits-panel {
+            height: 400px;
+        }
+        .theories-panel {
+            height: 400px;
+        }
+        h2 {
+            margin-top: 0;
+            color: #00ff00;
+        }
+        .trait-item, .theory-item {
+            background: #333;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .trait-value {
+            color: #00ff00;
+        }
+        .theory-confidence {
+            color: #ff9900;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="terminal" id="terminal"></div>
+        <div class="panel traits-panel">
+            <h2>Traits</h2>
+            <div id="traits-container"></div>
+        </div>
+        <div class="panel theories-panel">
+            <h2>Theories</h2>
+            <div id="theories-container"></div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const terminal = document.getElementById('terminal');
+        const traitsContainer = document.getElementById('traits-container');
+        const theoriesContainer = document.getElementById('theories-container');
+
+        function addTerminalLine(text) {
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+            line.textContent = text;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function updateTraits(traits) {
+            traitsContainer.innerHTML = traits.map(trait => `
+                <div class="trait-item">
+                    <h3>${trait.name}</h3>
+                    <p>${trait.description}</p>
+                    <p>Category: ${trait.category}</p>
+                    <p>Value: <span class="trait-value">${trait.value.toFixed(2)}</span></p>
+                </div>
+            `).join('');
+        }
+
+        function updateTheories(theories) {
+            theoriesContainer.innerHTML = theories.map(theory => `
+                <div class="theory-item">
+                    <h3>${theory.name}</h3>
+                    <p>${theory.description}</p>
+                    <p>Confidence: <span class="theory-confidence">${(theory.confidence * 100).toFixed(1)}%</span></p>
+                    <p>Required Traits:</p>
+                    <ul>
+                        ${Object.entries(theory.required_traits).map(([trait, value]) => 
+                            `<li>${trait}: ${value.toFixed(2)}</li>`
+                        ).join('')}
+                    </ul>
+                </div>
+            `).join('');
+        }
+
+        socket.on('simulation_update', (data) => {
+            addTerminalLine(`New trait generated: ${data.traits[data.traits.length - 1].name}`);
+            updateTraits(data.traits);
+            updateTheories(data.theories);
+        });
+
+        // Initial connection message
+        addTerminalLine('Connected to Soul Simulation...');
+    </script>
+</body>
+</html> 
