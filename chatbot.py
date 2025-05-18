@@ -211,7 +211,7 @@ async def soul_simulation():
             model = genai.GenerativeModel("models/gemini-2.0-flash")
             reply_prompt = (
                 "You are continuing a conversation with yourself. Here is your previous message:\n" + rt +
-                "\nReply to yourself, as if you are reflecting further or challenging your own thoughts."
+                "\nReply to yourself, as if you are reflecting furtheror challenging your own thoughts."
             )
             reply_response = model.generate_content(reply_prompt)
             reply_text = reply_response.text.strip() if hasattr(reply_response, 'text') else str(reply_response)
