@@ -157,44 +157,112 @@
   </style>
 </head>
 <body>
-  <h1>Soul Trait Evolution (Live)</h1>
-  <div class="tabs">
-    <button class="tab active" onclick="showTab('traits')">Traits Table</button>
-    <button class="tab" onclick="showTab('timeline')">Timeline</button>
-    <button class="tab" onclick="showTab('conversation')">Conversation</button>
-    <button class="tab" onclick="showTab('customization')">Customization</button>
+  <div id="api-key-setup" style="max-width:900px;margin:40px auto 30px auto;padding:30px 30px 20px 30px;background:var(--panel);border-radius:10px;box-shadow:0 2px 8px #0002;">
+    <h2>Enter API Keys to Begin</h2>
+    <label for="hf-key"><b>Hugging Face API Key:</b></label><br>
+    <input id="hf-key" type="password" style="width:100%;margin-bottom:12px;padding:10px;border-radius:6px;border:1px solid var(--panel-alt);background:var(--panel);color:var(--fg);"><br>
+    <label for="gemini-key"><b>Gemini API Key:</b></label><br>
+    <input id="gemini-key" type="password" style="width:100%;margin-bottom:12px;padding:10px;border-radius:6px;border:1px solid var(--panel-alt);background:var(--panel);color:var(--fg);"><br>
+    <button id="set-keys-btn" style="padding:10px 24px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-size:1em;">Set API Keys</button>
+    <span id="api-key-status" style="margin-left:20px;"></span>
   </div>
-  <div id="traits" class="tab-content active">
-    <div id="barplot"></div>
-    <table id="trait-table"></table>
-    <table id="discovered-table"></table>
-    <div id="terminal">Waiting for data...</div>
-  </div>
-  <div id="timeline" class="tab-content">
-    <div id="timeline"></div>
-  </div>
-  <div id="conversation" class="tab-content">
-    <div id="conversation"></div>
-  </div>
-  <div id="customization" class="tab-content">
-    <label for="theme-select"><b>Choose a theme:</b></label>
-    <select id="theme-select" class="theme-select">
-      <option value="">Light (Default)</option>
-      <option value="soft-blue">Soft Blue</option>
-      <option value="solarized">Solarized</option>
-      <option value="pastel">Pastel</option>
-    </select>
-    <hr style="margin: 30px 0;">
-    <label for="prompt-box"><b>Custom Reflection Prompt:</b></label><br>
-    <textarea id="prompt-box" rows="4" style="width: 100%; max-width: 900px; border-radius: 6px; border: 1px solid var(--panel-alt); background: var(--panel); color: var(--fg); padding: 10px; margin-top: 8px;"></textarea><br>
-    <button id="set-prompt-btn" style="margin-top: 10px; padding: 10px 20px; border-radius: 6px; background: var(--accent); color: #fff; border: none; cursor: pointer; font-size: 1em;">Set Prompt</button>
-    <span id="prompt-status" style="margin-left: 20px; color: var(--accent);"></span>
+  <div id="main-dashboard" style="display:none;">
+    <h1>Soul Trait Evolution (Live)</h1>
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('traits')">Traits Table</button>
+      <button class="tab" onclick="showTab('timeline')">Timeline</button>
+      <button class="tab" onclick="showTab('conversation')">Conversation</button>
+      <button class="tab" onclick="showTab('customization')">Customization</button>
+    </div>
+    <div id="traits" class="tab-content active">
+      <div id="barplot"></div>
+      <table id="trait-table"></table>
+      <table id="discovered-table"></table>
+      <div id="terminal">Waiting for data...</div>
+    </div>
+    <div id="timeline" class="tab-content">
+      <div id="timeline"></div>
+    </div>
+    <div id="conversation" class="tab-content">
+      <div id="conversation"></div>
+    </div>
+    <div id="customization" class="tab-content">
+      <label for="theme-select"><b>Choose a theme:</b></label>
+      <select id="theme-select" class="theme-select">
+        <option value="">Light (Default)</option>
+        <option value="soft-blue">Soft Blue</option>
+        <option value="solarized">Solarized</option>
+        <option value="pastel">Pastel</option>
+      </select>
+      <hr style="margin: 30px 0;">
+      <label for="prompt-box"><b>Custom Reflection Prompt:</b></label><br>
+      <textarea id="prompt-box" rows="4" style="width: 100%; max-width: 900px; border-radius: 6px; border: 1px solid var(--panel-alt); background: var(--panel); color: var(--fg); padding: 10px; margin-top: 8px;"></textarea><br>
+      <button id="set-prompt-btn" style="margin-top: 10px; padding: 10px 20px; border-radius: 6px; background: var(--accent); color: #fff; border: none; cursor: pointer; font-size: 1em;">Set Prompt</button>
+      <span id="prompt-status" style="margin-left: 20px; color: var(--accent);"></span>
+    </div>
   </div>
   <script>
+    // API Key Setup Logic
+    document.getElementById('set-keys-btn').onclick = async function() {
+      const hf = document.getElementById('hf-key').value.trim();
+      const gem = document.getElementById('gemini-key').value.trim();
+      const status = document.getElementById('api-key-status');
+      status.textContent = 'Validating...';
+      status.style.color = 'var(--accent)';
+      try {
+        const resp = await fetch('/set_api_keys', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hf_api_key: hf, gemini_api_key: gem })
+        });
+        const data = await resp.json();
+        if (resp.ok && data.status === 'ok') {
+          status.textContent = 'API keys accepted!';
+          status.style.color = 'green';
+          document.getElementById('api-key-setup').style.display = 'none';
+          document.getElementById('main-dashboard').style.display = '';
+          // Now connect WebSocket and start dashboard
+          window.ws = new WebSocket("wss://" + window.location.host + "/ws");
+          ws.onmessage = ws_onmessage_handler;
+        } else {
+          let msg = 'Error: ';
+          if (data.errors) {
+            msg += Object.values(data.errors).join(' ');
+          } else {
+            msg += 'Unknown error.';
+          }
+          status.textContent = msg;
+          status.style.color = 'red';
+        }
+      } catch (e) {
+        status.textContent = 'Failed to validate API keys.';
+        status.style.color = 'red';
+      }
+    };
+    // Only connect WebSocket after API keys are set
+    let ws;
+    function ws_onmessage_handler(event) {
+      let data = JSON.parse(event.data);
+      let traits = data.traits;
+      traitNames = data.trait_names;
+      history = data.history;
+      traitFirstSeen = data.trait_first_seen;
+      // Dominance calculation
+      let sum = Object.values(traits).reduce((a, b) => a + b, 0) || 1;
+      let dominance = {};
+      for (let k of Object.keys(traits)) dominance[k] = traits[k] / sum * 100;
+      let dominantTrait = Object.keys(dominance).reduce((a, b) => dominance[a] > dominance[b] ? a : b);
+      // Update all visualizations
+      updateBarPlot(traits, dominance);
+      updateTraitTable(traits, dominance, dominantTrait);
+      updateDiscoveredTable(traitFirstSeen, traits, data.step);
+      updateTimeline(history, traitNames);
+      document.getElementById('terminal').textContent = interpret(traits, dominance, dominantTrait);
+      updateConversation(data.conversation_history);
+    }
     let history = [];
     let traitNames = [];
     let traitFirstSeen = {};
-    let ws = new WebSocket("wss://" + window.location.host + "/ws");
 
     function showTab(tab) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -300,26 +368,6 @@
         </div>
       `).join('');
     }
-
-    ws.onmessage = function(event) {
-      let data = JSON.parse(event.data);
-      let traits = data.traits;
-      traitNames = data.trait_names;
-      history = data.history;
-      traitFirstSeen = data.trait_first_seen;
-      // Dominance calculation
-      let sum = Object.values(traits).reduce((a, b) => a + b, 0) || 1;
-      let dominance = {};
-      for (let k of Object.keys(traits)) dominance[k] = traits[k] / sum * 100;
-      let dominantTrait = Object.keys(dominance).reduce((a, b) => dominance[a] > dominance[b] ? a : b);
-      // Update all visualizations
-      updateBarPlot(traits, dominance);
-      updateTraitTable(traits, dominance, dominantTrait);
-      updateDiscoveredTable(traitFirstSeen, traits, data.step);
-      updateTimeline(history, traitNames);
-      document.getElementById('terminal').textContent = interpret(traits, dominance, dominantTrait);
-      updateConversation(data.conversation_history);
-    };
 
     document.getElementById('set-prompt-btn').onclick = async function() {
       const prompt = document.getElementById('prompt-box').value;

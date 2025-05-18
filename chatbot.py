@@ -46,6 +46,8 @@ trait_first_seen = {k: 0 for k in initial_traits}
 
 clients = set()
 user_prompt = None
+user_hf_api_key = None
+user_gemini_api_key = None
 
 # --- Trait Similarity Calculation Function ---
 def calculate_trait_similarities_and_colors(
@@ -94,70 +96,54 @@ def calculate_trait_similarities_and_colors(
     return final_colors_for_historical_traits
 
 # --- Reflection Generation Functions ---
-def generate_hf_reflection(traits_input: dict) -> str:
-    api_key = os.getenv("HF_API_KEY")
-    if not api_key: return "No Hugging Face API key set."
-    prompt_to_use = user_prompt or ("Given these soul traits and their values:\n" +
-                           "\n".join(f"{k}: {v:.2f}" for k, v in traits_input.items()) +
-                           "\nImagine you are a human soul, alone in infinite darkness, with no sensory input, on the edge of sanity. "
-                           "Write a short, emotionally raw, subjective, and biased philosophical reflection on this soul's current state, as a human might experience it.")
+def generate_hf_reflection(traits):
+    api_key = user_hf_api_key or os.getenv("HF_API_KEY")
+    if not api_key:
+        return "No Hugging Face API key set."
+    default_prompt = (
+        "Given these soul traits and their values:\n" +
+        "\n".join(f"{k}: {v:.2f}" for k, v in traits.items()) +
+        "\nImagine you are a human soul, alone in infinite darkness, with no sensory input, on the edge of sanity. "
+        "You have a lifespan of potentially 1000 steps. "
+        "Write a short, emotionally raw, subjective, and biased philosophical reflection on this soul's current state, as a human might experience it."
+    )
+    prompt = user_prompt if user_prompt else default_prompt
     headers = {"Authorization": f"Bearer {api_key}"}
-    payload = {"inputs": prompt_to_use, "parameters": {"max_new_tokens": 150, "temperature": 0.75, "return_full_text": False}, "options": {"wait_for_model": True, "use_cache": False}}
-    hf_model_url = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+    payload = {
+        "inputs": prompt,
+        "parameters": {"max_new_tokens": 80}
+    }
     try:
-        response = requests.post(hf_model_url, headers=headers, json=payload, timeout=35)
-        if response.status_code == 200: return response.json()[0]["generated_text"].strip()
+        response = requests.post(
+            "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
+            headers=headers, json=payload, timeout=10
+        )
+        if response.status_code == 200:
+            return response.json()[0]["generated_text"].strip()
         else:
-            print(f"HF API error. Status: {response.status_code}, Response: {response.text}")
-            return f"Reflection unavailable (HF API Error: {response.status_code}). Check logs."
-    except requests.exceptions.Timeout: return "Reflection unavailable (HF Timeout). Check logs."
-    except Exception as e:
-        print(f"HF API request failed: {e}"); traceback.print_exc()
-        return "Reflection unavailable (HF Exception). Check logs."
+            return "Reflection unavailable."
+    except Exception:
+        return "Reflection unavailable."
 
-def generate_gemini_reflection(traits_input: dict) -> str:
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key: return "No Gemini API key set."
+def generate_gemini_reflection(traits):
+    api_key = user_gemini_api_key or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return "No Gemini API key set."
+    genai.configure(api_key=api_key)
+    default_prompt = (
+        "Given these soul traits and their values:\n" +
+        "\n".join(f"{k}: {v:.2f}" for k, v in traits.items()) +
+        "\nImagine you are a human soul, alone in infinite darkness, with no sensory input, on the edge of sanity. "
+        "You have a lifespan of potentially 1000 steps. "
+        "Write a short, emotionally raw, subjective, and biased philosophical reflection on this soul's current state, as a human might experience it."
+    )
+    prompt = user_prompt if user_prompt else default_prompt
     try:
-        genai.configure(api_key=api_key)
-    except Exception as e:
-        print(f"Gemini API config error: {e}"); traceback.print_exc()
-        return "Gemini reflection unavailable (Config Error). Check logs."
-    prompt_to_use = user_prompt or ("Given these soul traits and their values:\n" +
-                           "\n".join(f"{k}: {v:.2f}" for k, v in traits_input.items()) +
-                           "\nImagine you are a human soul, alone in infinite darkness, with no sensory input, on the edge of sanity. "
-                           "Write a short, emotionally raw, subjective, and biased philosophical reflection on this soul's current state, as a human might experience it.")
-    
-    # IMPORTANT: User stated they want to use "2.0 flash".
-    # This could be "gemini-2.0-flash-latest", "models/gemini-2.0-flash-latest", or another variant.
-    # The user MUST verify the correct model name using genai.list_models() with a VALID API KEY.
-    # The previous error was for "gemini-1.0-flash".
-    model_name_to_try = "gemini-2.0-flash-latest" # Tentative based on user input "2.0 flash"
-    print(f"generate_gemini_reflection: Attempting to use Gemini model: '{model_name_to_try}'")
-
-    try:
-        model = genai.GenerativeModel(model_name_to_try) 
-        response = model.generate_content(prompt_to_use)
+        model = genai.GenerativeModel("models/gemini-2.0-pro")
+        response = model.generate_content(prompt)
         return response.text.strip()
-    except google.api_core.exceptions.NotFound as e_nf:
-        print(f"generate_gemini_reflection: Gemini API request failed - Model Not Found: {e_nf}")
-        print(f"Attempted model: '{model_name_to_try}'. THIS MODEL WAS NOT FOUND.")
-        print("CRITICAL ACTION: Use a script to call `genai.list_models()` with your VALID Gemini API key to find the correct model name.")
-        print("Then, update the 'model_name_to_try' variable in the code with a valid name from that list.")
-        traceback.print_exc()
-        return f"Gemini reflection unavailable (Model '{model_name_to_try}' not found). Check logs & verify model name."
-    except google.api_core.exceptions.InvalidArgument as e_ia: # Catching expired/invalid API key specifically
-        print(f"generate_gemini_reflection: Gemini API request failed - Invalid Argument: {e_ia}")
-        print("This often means your GEMINI_API_KEY is invalid, expired, or has insufficient permissions.")
-        print("CRITICAL ACTION: Please generate a new, valid Gemini API key and update it in your environment variables.")
-        traceback.print_exc()
-        return "Gemini reflection unavailable (Invalid API Key or Argument). Check logs & API key."
-    except Exception as e:
-        print(f"generate_gemini_reflection: Gemini API request failed with an unexpected error: {e}")
-        if hasattr(e, 'response') and hasattr(e.response, 'prompt_feedback'):
-             print(f"Gemini prompt feedback: {e.response.prompt_feedback}")
-        traceback.print_exc()
-        return "Gemini reflection unavailable. Check logs for details."
+    except Exception:
+        return "Gemini reflection unavailable."
 
 # --- API Endpoints ---
 @app.post("/set_prompt")
@@ -168,80 +154,171 @@ async def set_prompt_endpoint(request: Request):
     else: return JSONResponse({"status":"error","message":"Invalid prompt format"},status_code=400)
     return JSONResponse({"status":"ok","prompt_set_to":user_prompt or "default"})
 
+@app.post("/set_api_keys")
+async def set_api_keys(request: Request):
+    global user_hf_api_key, user_gemini_api_key
+    data = await request.json()
+    hf_key = data.get("hf_api_key")
+    gemini_key = data.get("gemini_api_key")
+    errors = {}
+    # Validate Hugging Face key
+    if hf_key:
+        headers = {"Authorization": f"Bearer {hf_key}"}
+        payload = {"inputs": "Test"}
+        try:
+            resp = requests.post(
+                "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
+                headers=headers, json=payload, timeout=10
+            )
+            if resp.status_code == 401:
+                errors["hf_api_key"] = "Invalid Hugging Face API key."
+            elif resp.status_code != 200:
+                errors["hf_api_key"] = f"Hugging Face error: {resp.status_code}"
+            else:
+                user_hf_api_key = hf_key
+        except Exception as e:
+            errors["hf_api_key"] = f"Hugging Face error: {str(e)}"
+    else:
+        errors["hf_api_key"] = "No Hugging Face API key provided."
+    # Validate Gemini key
+    if gemini_key:
+        try:
+            genai.configure(api_key=gemini_key)
+            model = genai.GenerativeModel("models/gemini-2.0-pro")
+            response = model.generate_content("Test")
+            if not hasattr(response, 'text') or not response.text:
+                errors["gemini_api_key"] = "Invalid Gemini API key."
+            else:
+                user_gemini_api_key = gemini_key
+        except Exception as e:
+            errors["gemini_api_key"] = f"Gemini error: {str(e)}"
+    else:
+        errors["gemini_api_key"] = "No Gemini API key provided."
+    if errors:
+        return JSONResponse({"status": "error", "errors": errors}, status_code=400)
+    return JSONResponse({"status": "ok"})
+
 # --- Background Simulation Task ---
 async def soul_simulation():
-    global traits,history,conversation_history,trait_first_seen;step=0;print("Soul simulation loop started.")
+    global traits, history, conversation_history, trait_first_seen
+    step = 0
     while True:
-        if random.random()<0.07:
-            ntn=f"trait_{random.randint(1,10000)}"
-            if ntn not in traits:traits[ntn]=round(random.random(),2);trait_first_seen[ntn]=step
-        if len(traits)>2 and random.random()<0.05:
-            etr=[k for k in traits if k not in initial_traits]
-            if etr:tr=random.choice(etr);del traits[tr];trait_first_seen.pop(tr,None)
-        for kt in list(traits.keys()):traits[kt]=round(min(1.0,max(0.0,traits[kt]+random.uniform(-0.05,0.05))),2)
-        history.append(traits.copy());
-        if len(history)>200:history=history[-200:]
-        aptl,pcp,cl,X=[],[],[],np.array([])
-        mhfa=3
-        if len(history)>=mhfa:
-            ats={k for s in history for k in s};aptl=sorted(list(ats))
+        # Randomize probabilities for this step
+        add_prob = random.uniform(0.01, 0.15)  # Random chance for adding a trait
+        remove_prob = random.uniform(0.01, 0.10)  # Random chance for removing a trait
+        # Randomly add a new trait
+        if random.random() < add_prob:
+            new_trait = f"trait_{random.randint(1, 1000)}"
+            if new_trait not in traits:
+                traits[new_trait] = random.random()
+                trait_first_seen[new_trait] = step
+        # Randomly remove a trait (but keep at least 2)
+        if len(traits) > 2 and random.random() < remove_prob:
+            to_remove = random.choice(list(traits.keys()))
+            del traits[to_remove]
+        # Evolve all traits (random walk, no target)
+        for k in traits:
+            traits[k] = min(1.0, max(0.0, traits[k] + random.uniform(-0.05, 0.05)))
+        # Save snapshot (deep copy)
+        history.append(traits.copy())
+        if len(history) > 200:
+            history = history[-200:]
+        aptl, pcp, cl, X = [], [], [], np.array([])
+        mhfa = 3
+        if len(history) >= mhfa:
+            ats = {k for s in history for k in s}
+            aptl = sorted(list(ats))
             if aptl:
-                Xl=[[s.get(kt,0.0)for kt in aptl]for s in history];X=np.array(Xl)
-                if X.shape[0]>=mhfa and X.shape[1]>0:
-                    npc=min(2,X.shape[0],X.shape[1])
-                    if npc>=1:
-                        try:pca=PCA(n_components=npc);pcp=pca.fit_transform(X).tolist()
-                        except Exception as ep:print(f"S{step} PCA err:{ep}")
-                    nkc=min(4,X.shape[0])
-                    if nkc>=1:
-                        try:km=KMeans(n_clusters=nkc,n_init='auto',random_state=0);cl=km.fit_predict(X).tolist()
-                        except Exception as ek:print(f"S{step} KM err:{ek}")
+                Xl = [[s.get(kt, 0.0) for kt in aptl] for s in history]
+                X = np.array(Xl)
+                if X.shape[0] >= mhfa and X.shape[1] > 0:
+                    npc = min(2, X.shape[0], X.shape[1])
+                    if npc >= 1:
+                        try:
+                            pca = PCA(n_components=npc)
+                            pcp = pca.fit_transform(X).tolist()
+                        except Exception as ep:
+                            print(f"S{step} PCA err:{ep}")
+                    nkc = min(4, X.shape[0])
+                    if nkc >= 1:
+                        try:
+                            km = KMeans(n_clusters=nkc, n_init='auto', random_state=0)
+                            cl = km.fit_predict(X).tolist()
+                        except Exception as ek:
+                            print(f"S{step} KM err:{ek}")
         
-        ctna=list(traits.keys());ftc={}
-        cfs={}
-        if aptl and X.ndim==2 and X.shape[0]>=1 and X.shape[1]==len(aptl):
-            cfs=calculate_trait_similarities_and_colors(trait_names_with_history=aptl,trait_history_matrix=X,min_history_steps_for_similarity=mhfa)
+        ctna = list(traits.keys())
+        ftc = {}
+        cfs = {}
+        if aptl and X.ndim == 2 and X.shape[0] >= 1 and X.shape[1] == len(aptl):
+            cfs = calculate_trait_similarities_and_colors(trait_names_with_history=aptl, trait_history_matrix=X, min_history_steps_for_similarity=mhfa)
         ftc.update(cfs)
-        uc=set(ftc.values());ap=[c for c in DEFAULT_COLORS_PALETTE if c not in uc]
-        if not ap:ap=DEFAULT_COLORS_PALETTE
-        cin=0
+        uc = set(ftc.values())
+        ap = [c for c in DEFAULT_COLORS_PALETTE if c not in uc]
+        if not ap:
+            ap = DEFAULT_COLORS_PALETTE
+        cin = 0
         for n in ctna:
             if n not in ftc:
-                if ap:ftc[n]=ap[cin%len(ap)];cin+=1
-                else:ftc[n]=DEFAULT_TRAIT_COLOR
-        ftc={n:ftc.get(n,DEFAULT_TRAIT_COLOR)for n in ctna}
+                if ap:
+                    ftc[n] = ap[cin % len(ap)]
+                    cin += 1
+                else:
+                    ftc[n] = DEFAULT_TRAIT_COLOR
+        ftc = {n: ftc.get(n, DEFAULT_TRAIT_COLOR) for n in ctna}
 
-        rt="Ref pend...";sn="Sys";ctfr=traits.copy()
-        if step%2==0:rt=generate_hf_reflection(ctfr);sn="AI1(HF)"
-        else:rt=generate_gemini_reflection(ctfr);sn="AI2(Gemini)"
-        conversation_history.append({"speaker":sn,"text":rt,"timestamp":datetime.now(timezone.utc).isoformat()})
-        if len(conversation_history)>100:conversation_history=conversation_history[-100:]
+        rt = "Ref pend..."
+        sn = "Sys"
+        ctfr = traits.copy()
+        if step % 2 == 0:
+            rt = generate_hf_reflection(ctfr)
+            sn = "AI1(HF)"
+        else:
+            rt = generate_gemini_reflection(ctfr)
+            sn = "AI2(Gemini)"
+        conversation_history.append({"speaker": sn, "text": rt, "timestamp": datetime.now(timezone.utc).isoformat()})
+        if len(conversation_history) > 100:
+            conversation_history = conversation_history[-100:]
         
-        data_to_send={"traits":traits,"trait_names":ctna,"history":history,"step":step,"pca_points":pcp,"clusters":cl,
-                      "all_traits_pca_order":aptl,"reflection":rt,"conversation_history":conversation_history,
-                      "trait_first_seen":trait_first_seen,"trait_colors":ftc}
+        data_to_send = {"traits": traits, "trait_names": ctna, "history": history, "step": step, "pca_points": pcp, "clusters": cl,
+                      "all_traits_pca_order": aptl, "reflection": rt, "conversation_history": conversation_history,
+                      "trait_first_seen": trait_first_seen, "trait_colors": ftc}
         for wc in list(clients):
-            try:await wc.send_json(data_to_send)
-            except:clients.discard(wc)
-        step+=1;await asyncio.sleep(5)
+            try:
+                await wc.send_json(data_to_send)
+            except:
+                clients.discard(wc)
+        step += 1
+        await asyncio.sleep(5)
 
 @app.on_event("startup")
-async def startup_event():asyncio.create_task(soul_simulation());print("Soul sim task created.")
+async def startup_event():
+    asyncio.create_task(soul_simulation())
+    print("Soul sim task created.")
+
 @app.websocket("/ws")
-async def websocket_endpoint(websocket:WebSocket):
-    await websocket.accept();clients.add(websocket);ch=websocket.client.host or "Unk";cp=websocket.client.port or "N/A"
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    clients.add(websocket)
+    ch = websocket.client.host or "Unk"
+    cp = websocket.client.port or "N/A"
     print(f"Client {ch}:{cp} connected. Total clients:{len(clients)}")
     try:
-        while True:await asyncio.sleep(60)
-    except:pass
-    finally:clients.discard(websocket);print(f"Client {ch}:{cp} disconnected. Total clients:{len(clients)}")
+        while True:
+            await asyncio.sleep(60)
+    except:
+        pass
+    finally:
+        clients.discard(websocket)
+        print(f"Client {ch}:{cp} disconnected. Total clients:{len(clients)}")
 
-static_dir_name="static"
+static_dir_name = "static"
 if not os.path.exists(static_dir_name):
     os.makedirs(static_dir_name)
-    dummy_html_path=os.path.join(static_dir_name,"index.html")
+    dummy_html_path = os.path.join(static_dir_name, "index.html")
     if not os.path.exists(dummy_html_path):
-        with open(dummy_html_path,"w")as f:f.write("""<!DOCTYPE html>
+        with open(dummy_html_path, "w") as f:
+            f.write("""<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><title>Soul Sim</title><style>body{font-family:sans-serif;margin:20px} pre{background-color:#f4f4f4;padding:10px;border-radius:5px;white-space:pre-wrap;word-wrap:break-word;max-height:600px;overflow-y:auto}</style></head>
 <body><h1>Soul Sim Monitor 🚀</h1><div id="traits-container"></div><pre id="data_display">Connecting...</pre>
 <script>
@@ -254,11 +331,13 @@ ws.onclose=(evt)=>{dd.textContent=`Disconnected. Code:${evt.code},Reason:${evt.r
 ws.onerror=(err)=>{console.error('WS Error:',err);dd.textContent='WS error.';};
 </script></body></html>""")
 
-app.mount("/",StaticFiles(directory=static_dir_name,html=True),name="static")
+app.mount("/", StaticFiles(directory=static_dir_name, html=True), name="static")
 
-if __name__=="__main__":
-    import uvicorn;mn="chatbot";p=int(os.getenv("PORT",10000))
+if __name__ == "__main__":
+    import uvicorn
+    mn = "chatbot"
+    p = int(os.getenv("PORT", 10000))
     print(f"🚀 Starting Uvicorn server on http://0.0.0.0:{p}")
     print(f"👉 Running FastAPI 'app' from '{mn}.py'")
     print("🔑 Ensure API keys are set in environment.")
-    uvicorn.run(f"{mn}:app",host="0.0.0.0",port=p,reload=True)
+    uvicorn.run(f"{mn}:app", host="0.0.0.0", port=p, reload=True)
