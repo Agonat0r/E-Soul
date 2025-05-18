@@ -1,8 +1,11 @@
 services:
   - type: web
-    name: python-raw-server
+    name: gemini-chat-app
     env: python
     plan: free
-    buildCommand: ""
-    startCommand: "python start_server.py"
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "bash start.sh"
     branch: main
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
