@@ -15,7 +15,10 @@ import google.generativeai as genai
 import google.api_core.exceptions 
 import traceback
 
+# Your FastAPI application instance
 app = FastAPI()
+
+# CORS (Cross-Origin Resource Sharing) middleware
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
@@ -39,7 +42,7 @@ STAGE_RELEVANT_TRAIT_CONCEPTS = {
     "Proto-Sapient": ["tool-use", "symbolic-thought", "planning-basic", "social-hierarchy", "self-recognition-advanced"],
     "Sapient Being": ["abstract-logic", "long-term-planning", "ethical-framework", "creativity-expressive", "existential-inquiry", "knowledge-seeking"]
 }
-current_evolutionary_stage_index = 0
+current_evolutionary_stage_index = 0 # Start at "Primordial Essence"
 
 # --- Trait Similarity Colors ---
 DEFAULT_COLORS_PALETTE = [
@@ -47,26 +50,24 @@ DEFAULT_COLORS_PALETTE = [
     "#9370DB", "#3CB371", "#F08080", "#ADD8E6", "#90EE90", "#FFFFE0", "#C8A2C8", "#DB7093", 
     "#AFEEEE", "#F5DEB3", "#DDA0DD", "#8FBC8F", "#FA8072", "#B0C4DE", "#98FB98", "#FAFAD2", "#E6E6FA" 
 ]
-DEFAULT_TRAIT_COLOR = "#B0B0B0"
+DEFAULT_TRAIT_COLOR = "#B0B0B0" # Default grey
 
 # === Dynamic Soul Trait Logic ===
-# Adjusted initial traits to fit the "Primordial Essence" or early "Microorganism" idea
 initial_traits = {"energy-level": 0.5, "reactivity-to-stimuli": 0.6, "structural-integrity": 0.4}
-traits = initial_traits.copy() # Current state of traits
-history = []  # List of dictionaries, each a snapshot of traits at a step
-conversation_history = []  # Stores all AI utterances: analytical statements, system messages
-evolving_theories = [] # Stores AI's generated theories: {text: "...", timestamp: "...", step: ..., stage: "..."}
-trait_first_seen = {k: 0 for k in initial_traits}  # Trait name -> step first seen
+traits = initial_traits.copy() 
+history = []  
+conversation_history = [] 
+evolving_theories = [] 
+trait_first_seen = {k: 0 for k in initial_traits} 
 
-clients = set() # Set of connected WebSocket clients
-user_prompt_override = None  # For overriding the main analytical prompt
-user_gemini_api_key = None # Stores validated key from /set_api_keys
+clients = set() 
+user_prompt_override = None 
+user_gemini_api_key = None 
 
 # --- Helper Functions (Trait Stats, Correlations, Similarity Colors) ---
 def get_trait_statistics(trait_history_matrix: np.ndarray, trait_names: list[str], current_traits_dict: dict, window_size: int = 10) -> dict:
     stats = {}
     if not isinstance(trait_history_matrix, np.ndarray) or trait_history_matrix.ndim != 2 or trait_history_matrix.shape[0] == 0:
-        # Fallback if history matrix is not usable
         for name, val in current_traits_dict.items():
             stats[name] = {"current": round(val, 3), "change_last_step": 0.0, 
                            "avg_recent_N": round(val, 3), "trend_slope_recent_N": 0.0, "window_N": 0}
@@ -74,41 +75,31 @@ def get_trait_statistics(trait_history_matrix: np.ndarray, trait_names: list[str
 
     num_history_steps, num_traits_in_hist_matrix = trait_history_matrix.shape
 
-    if num_traits_in_hist_matrix != len(trait_names): # Should not happen if called correctly
-        print(f"Warning: Mismatch between trait_names ({len(trait_names)}) and history_matrix columns ({num_traits_in_hist_matrix})")
-        # Fallback to current_traits_dict only
-        for name, val in current_traits_dict.items():
-            stats[name] = {"current": round(val, 3), "change_last_step": 0.0, 
-                           "avg_recent_N": round(val, 3), "trend_slope_recent_N": 0.0, "window_N": 0}
+    if num_traits_in_hist_matrix != len(trait_names):
+        print(f"Warning: Mismatch trait_names ({len(trait_names)}) vs history_matrix cols ({num_traits_in_hist_matrix})")
+        for name, val in current_traits_dict.items(): # Fallback
+            stats[name] = {"current": round(val, 3), "change_last_step": 0.0, "avg_recent_N": round(val, 3), "trend_slope_recent_N": 0.0, "window_N": 0}
         return stats
         
     for i, trait_name in enumerate(trait_names):
         current_value = current_traits_dict.get(trait_name, trait_history_matrix[-1, i] if num_history_steps > 0 else 0.0)
-        
         actual_window_size = min(window_size, num_history_steps)
         recent_values = trait_history_matrix[max(0, num_history_steps - actual_window_size):num_history_steps, i]
-        
         change = 0.0
         if num_history_steps >= 2: change = trait_history_matrix[-1, i] - trait_history_matrix[-2, i]
         elif num_history_steps == 1: change = trait_history_matrix[-1, i] 
-
         avg_recent = np.mean(recent_values) if recent_values.size > 0 else current_value
         trend_slope = 0.0
         if recent_values.size >= 2:
             try: trend_slope = np.polyfit(np.arange(len(recent_values)), recent_values, 1)[0]
             except np.linalg.LinAlgError: trend_slope = 0.0
-                
-        stats[trait_name] = {
-            "current": round(current_value, 3), "change_last_step": round(change, 3),
-            f"avg_recent_{len(recent_values)}": round(avg_recent, 3), 
-            f"trend_slope_recent_{len(recent_values)}": round(trend_slope, 3),
-            "window_N": len(recent_values)
-        }
-    # Add stats for any current traits not in historical trait_names (e.g. brand new)
-    for trait_name_curr, current_value_curr in current_traits_dict.items():
-        if trait_name_curr not in stats:
-             stats[trait_name_curr] = {"current": round(current_value_curr,3), "change_last_step": 0.0, 
-                                    "avg_recent_0": round(current_value_curr,3), "trend_slope_recent_0": 0.0, "window_N":0}
+        stats[trait_name] = {"current":round(current_value,3),"change_last_step":round(change,3),
+                             f"avg_recent_{len(recent_values)}":round(avg_recent,3), 
+                             f"trend_slope_recent_{len(recent_values)}":round(trend_slope,3),
+                             "window_N":len(recent_values)}
+    for name_curr, val_curr in current_traits_dict.items():
+        if name_curr not in stats:
+             stats[name_curr] = {"current":round(val_curr,3),"change_last_step":0.0,"avg_recent_0":round(val_curr,3),"trend_slope_recent_0":0.0,"window_N":0}
     return stats
 
 def get_trait_correlations(trait_history_matrix: np.ndarray, trait_names: list[str], min_corr_steps: int = 5, top_n: int = 3) -> list[str]:
@@ -120,7 +111,6 @@ def get_trait_correlations(trait_history_matrix: np.ndarray, trait_names: list[s
     except Exception as e: print(f"Correlation error: {e}"); return ["Error in correlation calculation."]
     if not isinstance(corr_matrix, np.ndarray) or corr_matrix.ndim != 2 or corr_matrix.shape[0] != len(trait_names):
         return ["Correlation matrix unexpected shape."]
-
     correlations = []
     for i in range(len(trait_names)):
         for j in range(i + 1, len(trait_names)):
@@ -129,7 +119,7 @@ def get_trait_correlations(trait_history_matrix: np.ndarray, trait_names: list[s
     correlations.sort(key=lambda x: abs(x[1]), reverse=True)
     if not correlations: return ["No calculable correlations."]
     output = [f"'{t1}' & '{t2}' are {('strongly' if abs(v)>0.7 else 'moderately' if abs(v)>0.4 else 'weakly')} {('positively' if v>0 else 'negatively')} correlated ({v:.2f})" 
-              for ((t1, t2), v) in correlations[:top_n] if abs(v) > 0.3] # Threshold for reporting
+              for ((t1, t2), v) in correlations[:top_n] if abs(v) > 0.3] 
     return output if output else ["No notable correlations found (threshold > 0.3)."]
 
 def calculate_trait_similarities_and_colors(
@@ -160,14 +150,13 @@ def calculate_trait_similarities_and_colors(
 
 # --- Reusable Gemini API Call Function ---
 def call_gemini_api(prompt_text: str, model_name: str, context_for_log: str = "Gemini Call", temperature: float = 0.8, top_p: float = 0.95, top_k: int = 40) -> str:
-    # ... (This function remains the same as the one provided in the previous response) ...
     api_key_to_use = user_gemini_api_key or os.getenv("GEMINI_API_KEY")
     if not api_key_to_use: print(f"{context_for_log}: CRITICAL - No API key."); return f"Error: No Gemini API key for {context_for_log}."
     try: genai.configure(api_key=api_key_to_use)
     except Exception as e: print(f"{context_for_log}: CRITICAL - API config error: {e}"); return f"Error: Gemini API Key Config Error for {context_for_log}."
-    gc = genai.types.GenerationConfig(temperature=temperature,top_p=top_p,top_k=top_k,max_output_tokens=300) # Increased max_output_tokens
+    gc = genai.types.GenerationConfig(temperature=temperature,top_p=top_p,top_k=top_k,max_output_tokens=300)
     ss = [{"category":c,"threshold":"BLOCK_MEDIUM_AND_ABOVE"} for c in ["HARM_CATEGORY_HARASSMENT","HARM_CATEGORY_HATE_SPEECH","HARM_CATEGORY_SEXUALLY_EXPLICIT","HARM_CATEGORY_DANGEROUS_CONTENT"]]
-    # print(f"{context_for_log}: Model '{model_name}' prompt (start): '{prompt_text[:70]}...'") # Keep for debugging if needed
+    # print(f"{context_for_log}: Model '{model_name}' prompt (start): '{prompt_text[:70]}...'") # Uncomment for deep prompt debugging
     try:
         model = genai.GenerativeModel(model_name)
         response = model.generate_content(prompt_text,generation_config=gc,safety_settings=ss,request_options={"timeout":30})
@@ -177,38 +166,46 @@ def call_gemini_api(prompt_text: str, model_name: str, context_for_log: str = "G
         brm, fr = "", "Unknown";
         if hasattr(response,'prompt_feedback') and response.prompt_feedback.block_reason: brm=f" (Block: {response.prompt_feedback.block_reason_message or response.prompt_feedback.block_reason})"
         if hasattr(response,'candidates') and response.candidates and response.candidates[0].finish_reason: fr=response.candidates[0].finish_reason.name
-        if fr not in ["STOP","MAX_TOKENS"]: brm+=f" (Finish: {fr})"
+        if fr not in ["STOP","MAX_TOKENS","FINISH_REASON_UNSPECIFIED"]: brm+=f" (Finish Reason: {fr})" # Add finish reason if it's not a normal stop
         erm=f"Error: Empty/problematic response from '{model_name}' for {context_for_log}{brm}."
         print(f"{context_for_log}: {erm}"); 
-        if hasattr(response,'prompt_feedback'): print(f"PF: {response.prompt_feedback}")
-        if hasattr(response,'candidates'): print(f"Cand: {response.candidates}")
+        if hasattr(response,'prompt_feedback'): print(f"Prompt Feedback: {response.prompt_feedback}")
+        if hasattr(response,'candidates'): print(f"Candidates: {response.candidates}")
         return erm
-    except google.api_core.exceptions.NotFound as e: erm=f"Error: Model '{model_name}' NOT FOUND for {context_for_log}. {e}"; print(f"{context_for_log}: CRIT - {erm}"); return erm
-    except google.api_core.exceptions.InvalidArgument as e: erm=f"Error: INVALID API KEY/Argument for {context_for_log}. {e}"; print(f"{context_for_log}: CRIT - {erm}"); return erm
+    except google.api_core.exceptions.NotFound as e: erm=f"Error: Model '{model_name}' NOT FOUND for {context_for_log}. {e}"; print(f"{context_for_log}: CRIT - {erm}"); traceback.print_exc(); return erm
+    except google.api_core.exceptions.InvalidArgument as e: erm=f"Error: INVALID API KEY/Argument for {context_for_log}. {e}"; print(f"{context_for_log}: CRIT - {erm}"); traceback.print_exc(); return erm
     except Exception as e: erm=f"Error: Unexpected during {context_for_log} with '{model_name}'. {e}"; print(f"{context_for_log}: ERR - {erm}"); traceback.print_exc(); return erm
 
 # --- Stage-Aware AI Interaction Functions ---
 def generate_analytical_statement(current_traits_stats: dict, correlation_summary: list[str], stage_name: str, step: int) -> str:
-    # ... (This function remains the same as the one provided in the previous response) ...
     stats_str_parts = []
-    for name, data in current_traits_stats.items(): stats_str_parts.append(f"  - '{name}': {data['current']} (change: {data.get('change_last_step','N/A')}, avg_last_{data.get('window_N','N/A')}: {data.get(next(k for k in data if k.startswith('avg_recent_')),'N/A')}, trend_last_{data.get('window_N','N/A')}: {data.get(next(k for k in data if k.startswith('trend_slope_recent_')),'N/A')})")
+    for name, data in current_traits_stats.items(): 
+        avg_key = next((k for k in data if k.startswith("avg_recent_")), "N/A")
+        trend_key = next((k for k in data if k.startswith("trend_slope_recent_")), "N/A")
+        window_N = data.get("window_N", "N/A")
+        stats_str_parts.append(f"  - '{name}': {data['current']} (change: {data.get('change_last_step','N/A')}, avg_last_{window_N}: {data.get(avg_key,'N/A')}, trend_last_{window_N}: {data.get(trend_key,'N/A')})")
     stats_summary_str = "\n".join(stats_str_parts); corr_summary_str = "\n".join(f"  - {corr}" for corr in correlation_summary)
-    prompt = (f"You are an analytical AI entity at step {step}, in evolutionary stage: '{stage_name}'. Your understanding must be appropriate for this stage. Focus on objective patterns from your internal data.\n\nDATA:\n1. Trait Stats (val, change, avg, trend):\n{stats_summary_str}\n2. Trait Correlations:\n{corr_summary_str}\n\nINSTRUCTIONS (for a '{stage_name}'):\n1. Identify 1-2 salient patterns, anomalies, or changes relevant to your stage.\n2. Formulate a concise observation or question from this data, framed from your current stage's perspective.\n3. Max 2-3 brief sentences.\n\nANALYTICAL STATEMENT:")
+    prompt = (f"You are an analytical AI entity at simulation step {step}, in evolutionary stage: '{stage_name}'. Your understanding must be appropriate for this stage. Focus on objective patterns from your internal data.\n\nDATA:\n1. Trait Stats (val, change, avg, trend):\n{stats_summary_str}\n2. Trait Correlations:\n{corr_summary_str}\n\nINSTRUCTIONS (for a '{stage_name}'):\n1. Identify 1-2 most salient patterns, anomalies, or significant changes relevant to your stage.\n2. Formulate a concise observation or a question from this data, framed from your current stage's perspective.\n3. Max 2-3 brief sentences.\n\nANALYTICAL STATEMENT:")
     return call_gemini_api(prompt, "models/gemini-2.0-flash", f"Analytical Statement ({stage_name})", temperature=0.6, top_p=0.9)
 
 def generate_updated_theory(current_traits_stats: dict, correlation_summary: list[str], last_analytical_statement: str, previous_theories: list, stage_name: str, step: int) -> str:
-    # ... (This function remains the same as the one provided in the previous response) ...
     stats_str_parts = []
-    for name, data in current_traits_stats.items(): stats_str_parts.append(f"  - '{name}': {data['current']} (change: {data.get('change_last_step','N/A')}, avg_last_{data.get('window_N','N/A')}: {data.get(next(k for k in data if k.startswith('avg_recent_')),'N/A')}, trend_last_{data.get('window_N','N/A')}: {data.get(next(k for k in data if k.startswith('trend_slope_recent_')),'N/A')})")
+    for name, data in current_traits_stats.items(): 
+        avg_key = next((k for k in data if k.startswith("avg_recent_")), "N/A")
+        trend_key = next((k for k in data if k.startswith("trend_slope_recent_")), "N/A")
+        window_N = data.get("window_N", "N/A")
+        stats_str_parts.append(f"  - '{name}': {data['current']} (change: {data.get('change_last_step','N/A')}, avg_last_{window_N}: {data.get(avg_key,'N/A')}, trend_last_{window_N}: {data.get(trend_key,'N/A')})")
     stats_summary_str = "\n".join(stats_str_parts); corr_summary_str = "\n".join(f"  - {corr}" for corr in correlation_summary)
     prev_theories_str = "\n".join([f"  - (Stage: '{t.get('stage', 'Unknown')}', Step {t['step']}) \"{t['text']}\"" for t in previous_theories]) if previous_theories else "  - No prior theories."
     prompt = (f"You are an AI developing theories about your internal functioning. Stage: '{stage_name}', Step: {step}.\n\nDATA ANALYSIS:\n1. Trait Stats:\n{stats_summary_str}\n2. Trait Correlations:\n{corr_summary_str}\n3. Latest Observation (this step):\n  - \"{last_analytical_statement}\"\n\nPREVIOUS THEORIES:\n{prev_theories_str}\n\nINSTRUCTIONS (Feedback Loop for a '{stage_name}'):\n1. Review your *most recent* previous theory considering CURRENT DATA & LATEST OBSERVATION.\n2. Does new info support, contradict, or refine it, given your stage?\n3. Formulate an UPDATED or NEW concise theory (2-4 sentences) appropriate for a '{stage_name}'. Explain reasoning based on data & stage.\n\nTHEORY & REASONING:")
     return call_gemini_api(prompt, "models/gemini-2.0-flash", f"Theory Update ({stage_name})", temperature=0.7, top_p=0.9)
 
 def suggest_trait_evolution_analytically(current_traits_stats: dict, current_theory_text: str|None, current_traits_dict: dict, stage_name: str, stage_trait_concepts: list[str], step: int) -> tuple[str|None, str|None]:
-    # ... (This function remains the same as the one provided in the previous response) ...
     stats_str_parts = []
-    for name, data in current_traits_stats.items(): stats_str_parts.append(f"  - '{name}': {data['current']} (trend_last_{data.get('window_N','N/A')}: {data.get(next(k for k in data if k.startswith('trend_slope_recent_')),'N/A')})")
+    for name, data in current_traits_stats.items(): 
+        trend_key = next((k for k in data if k.startswith("trend_slope_recent_")), "N/A")
+        window_N = data.get("window_N", "N/A")
+        stats_str_parts.append(f"  - '{name}': {data['current']} (trend_last_{window_N}: {data.get(trend_key,'N/A')})")
     stats_summary_str = "\n".join(stats_str_parts); initial_tn_str = ", ".join(f"'{k}'" for k in initial_traits.keys());
     non_initial_t = [k for k in current_traits_dict if k not in initial_traits]; removable_t_str = ", ".join(f"'{k}'" for k in non_initial_t) if non_initial_t else "none"
     stage_c_str = ", ".join(f"'{c}'" for c in stage_trait_concepts) if stage_trait_concepts else "general concepts"
@@ -223,7 +220,7 @@ def suggest_trait_evolution_analytically(current_traits_stats: dict, current_the
     return nt_s, rt_s
 
 # --- FastAPI Endpoints & Simulation ---
-@app.post("/set_prompt") # Same as before
+@app.post("/set_prompt")
 async def set_prompt_endpoint(request: Request):
     global user_prompt_override; data = await request.json(); new_prompt = data.get("prompt")
     if isinstance(new_prompt, str) and new_prompt.strip(): user_prompt_override = new_prompt; print(f"User prompt override set.")
@@ -231,25 +228,25 @@ async def set_prompt_endpoint(request: Request):
     else: return JSONResponse({"status":"error","message":"Invalid prompt format"},status_code=400)
     return JSONResponse({"status":"ok","prompt_set_to": "Custom" if user_prompt_override else "Default System Prompt"})
 
-@app.post("/set_api_keys") # Same as before
+@app.post("/set_api_keys")
 async def set_api_keys(request: Request):
     global user_gemini_api_key
     data = await request.json(); gemini_key_req = data.get("gemini_api_key"); errors = {}
-    print(f"/set_api_keys: Received. Gemini key provided: {'Y' if gemini_key_req else 'N'}")
+    print(f"/set_api_keys: Received. Gemini key provided: {'Yes' if gemini_key_req else 'No'}")
     if gemini_key_req:
         try:
             print(f"/set_api_keys: Validating Gemini key ...{gemini_key_req[-4:]}")
             genai.configure(api_key=gemini_key_req)
-            model_test = "models/gemini-2.0-flash" # User confirmed
+            model_test = "models/gemini-2.0-flash" # User confirmed model
             model = genai.GenerativeModel(model_test)
             print(f"/set_api_keys: Test call to '{model_test}'...")
-            test_resp = model.generate_content("Test.", request_options={"timeout":10})
+            test_resp = model.generate_content("Test connectivity.", request_options={"timeout":10}) 
             if test_resp.candidates and test_resp.candidates[0].content and test_resp.candidates[0].content.parts and "".join(p.text for p in test_resp.candidates[0].content.parts).strip():
-                user_gemini_api_key = gemini_key_req; print(f"/set_api_keys: Key ...{user_gemini_api_key[-4:]} VALIDATED & SET.")
+                user_gemini_api_key = gemini_key_req; print(f"/set_api_keys: Gemini key ...{user_gemini_api_key[-4:]} VALIDATED & SET.")
             else:
                 br=getattr(getattr(test_resp,'prompt_feedback',None),'block_reason',None); bm=getattr(getattr(test_resp,'prompt_feedback',None),'block_reason_message',None)
                 fr_obj=getattr(test_resp.candidates[0] if test_resp.candidates else None,'finish_reason',None); fr=fr_obj.name if fr_obj else "UNK_FIN"
-                brm=f" (Block:{bm or br},Finish:{fr})" if br or (fr not in ["STOP","MAX_TOKENS"]) else f" (Finish:{fr})"
+                brm=f" (Block:{bm or br},Finish:{fr})" if br or (fr not in ["STOP","MAX_TOKENS","FINISH_REASON_UNSPECIFIED"]) else f" (Finish:{fr})"
                 errors["gemini_api_key"]=f"Invalid Key (Test to '{model_test}' empty/blocked{brm})."
                 print(f"/set_api_keys: FAIL. {errors['gemini_api_key']}")
         except Exception as e: errors["gemini_api_key"]=f"Key validation error: {type(e).__name__} - {str(e)[:100]}..."; print(f"/set_api_keys: FAIL ex. {errors['gemini_api_key']}"); traceback.print_exc()
@@ -260,15 +257,15 @@ async def set_api_keys(request: Request):
 async def soul_simulation():
     global traits, history, conversation_history, trait_first_seen, evolving_theories, current_evolutionary_stage_index
     step = 0; initial_trait_set = set(initial_traits.keys()); print("Soul simulation loop started.")
-    theory_interval, trait_evo_interval, stage_check_interval = 5, 7, 15 # Frequencies
-    stats_window, corr_min_steps, corr_top_n = 15, 10, 3 # Analysis params
+    theory_interval, trait_evo_interval, stage_check_interval = 5, 7, 15 
+    stats_window, corr_min_steps, corr_top_n = 15, 10, 3 
 
     while True:
         current_stage_info = EVOLUTIONARY_STAGES[current_evolutionary_stage_index]
         current_stage_name = current_stage_info["name"]
-        print(f"\n--- Step {step} | Stage: {current_stage_name} ---")
+        print(f"\n--- Step {step} | Stage: {current_stage_name} ({current_evolutionary_stage_index + 1}/{len(EVOLUTIONARY_STAGES)}) ---")
 
-        for k in traits: traits[k] = round(min(1.0,max(0.0,traits[k]+random.uniform(-0.05,0.05))),3) # Use 3 decimal places
+        for k in traits: traits[k] = round(min(1.0,max(0.0,traits[k]+random.uniform(-0.05,0.05))),3)
         history.append(traits.copy());
         if len(history)>200: history=history[-200:]
         
@@ -293,7 +290,7 @@ async def soul_simulation():
                         if n not in ftc: ftc[n]=ap[cin%len(ap)];cin+=1
                     ftc={n:ftc.get(n,DEFAULT_TRAIT_COLOR) for n in ctna}
         
-        trait_stats={}, corr_sum_list=["Not enough data."]
+        trait_stats={}, corr_sum_list=["Awaiting sufficient historical data."]
         hist_for_analysis=history[max(0,len(history)-stats_window):]
         min_steps_for_stats=3
         if len(hist_for_analysis)>=min_steps_for_stats:
@@ -306,7 +303,7 @@ async def soul_simulation():
 
         analytical_statement = generate_analytical_statement(trait_stats,corr_sum_list,current_stage_name,step)
         conversation_history.append({"speaker":f"AI Soul ({current_stage_name})","text":analytical_statement,"timestamp":datetime.now(timezone.utc).isoformat(),"type":"analysis", "step": step})
-        print(f"S{step} Analytical Statement: '{analytical_statement[:70]}...'")
+        # print(f"S{step} Analytical Statement: '{analytical_statement[:70]}...'") # Reduce default logging
 
         if step>0 and step%theory_interval==0:
             print(f"S{step} Updating theory (Stage: {current_stage_name})...");
@@ -325,30 +322,29 @@ async def soul_simulation():
             if rem_sugg and rem_sugg in traits and rem_sugg not in initial_trait_set:del traits[rem_sugg];trait_first_seen.pop(rem_sugg,None);print(f"S{step} AI REMOVAL of trait '{rem_sugg}'.")
 
         if step>0 and step%stage_check_interval==0 and current_evolutionary_stage_index<len(EVOLUTIONARY_STAGES)-1:
-            adv=False; csi = current_evolutionary_stage_index # Store before potential change
-            # --- More sophisticated advancement criteria needed here based on traits, theories, or complexity ---
-            if EVOLUTIONARY_STAGES[csi]["name"] == "Primordial Essence" and step > (10 + csi*5) : adv = True 
-            elif EVOLUTIONARY_STAGES[csi]["name"] == "Microorganism" and traits.get('motility',0) > 0.6 and step > (25 + csi*5) : adv = True
-            elif EVOLUTIONARY_STAGES[csi]["name"] == "Colonial Organism" and traits.get('group-synchrony',0) > 0.5 and len(traits) > (len(initial_traits)+2) and step > (40 + csi*5): adv = True
-            elif EVOLUTIONARY_STAGES[csi]["name"] == "Instinctual Creature" and (traits.get('basic-memory',0) > 0.5 or traits.get('social-bonding',0) > 0.3) and step > (60 + csi*10): adv = True
-            elif EVOLUTIONARY_STAGES[csi]["name"] == "Developing Mind" and traits.get('curiosity-advanced',0) > 0.6 and traits.get('pattern-recognition',0) > 0.5 and len(evolving_theories) > 1 and step > (80 + csi*10): adv = True
-            elif EVOLUTIONARY_STAGES[csi]["name"] == "Proto-Sapient" and traits.get('abstract-logic',0) > 0.4 and traits.get('planning-basic',0) > 0.4 and len(evolving_theories) > 3 and step > (100 + csi*10): adv = True
-
-
+            adv=False; csi_before_adv = current_evolutionary_stage_index 
+            # --- Define your advancement criteria here ---
+            # This is placeholder logic; make it more sophisticated!
+            if EVOLUTIONARY_STAGES[csi_before_adv]["name"] == "Primordial Essence" and step > (10 + csi_before_adv*5) : adv = True 
+            elif EVOLUTIONARY_STAGES[csi_before_adv]["name"] == "Microorganism" and traits.get('motility',0) > 0.6 and step > (25 + csi_before_adv*5) : adv = True
+            elif EVOLUTIONARY_STAGES[csi_before_adv]["name"] == "Colonial Organism" and traits.get('group-synchrony',0) > 0.5 and len(traits) > (len(initial_traits)+1) and step > (40 + csi_before_adv*5): adv = True
+            elif EVOLUTIONARY_STAGES[csi_before_adv]["name"] == "Instinctual Creature" and (traits.get('basic-memory',0) > 0.5 or traits.get('social-bonding',0) > 0.3) and step > (60 + csi_before_adv*10): adv = True
+            elif EVOLUTIONARY_STAGES[csi_before_adv]["name"] == "Developing Mind" and traits.get('curiosity-advanced',0) > 0.6 and traits.get('pattern-recognition',0) > 0.5 and len(evolving_theories) >= 1 and step > (80 + csi_before_adv*10): adv = True
+            elif EVOLUTIONARY_STAGES[csi_before_adv]["name"] == "Proto-Sapient" and traits.get('abstract-logic',0) > 0.4 and traits.get('planning-basic',0) > 0.4 and len(evolving_theories) >= 2 and step > (100 + csi_before_adv*10): adv = True
+            
             if adv:
-                old_stage_name = EVOLUTIONARY_STAGES[csi]["name"]
+                old_stage_name = EVOLUTIONARY_STAGES[csi_before_adv]["name"]
                 current_evolutionary_stage_index+=1
                 new_stage_name=EVOLUTIONARY_STAGES[current_evolutionary_stage_index]["name"]
-                evo_msg=f"EVOLUTIONARY ADVANCEMENT: Stage {csi} '{old_stage_name}' --> Stage {current_evolutionary_stage_index} '{new_stage_name}' at step {step}."
+                evo_msg=f"EVOLUTIONARY ADVANCEMENT: Stage {csi_before_adv+1} '{old_stage_name}' --> Stage {current_evolutionary_stage_index+1} '{new_stage_name}' at step {step}."
                 print(evo_msg);conversation_history.append({"speaker":"SYSTEM (Evolution)","text":evo_msg,"timestamp":datetime.now(timezone.utc).isoformat(),"type":"evolution", "step": step})
-                # Add 1-2 new traits relevant to the new stage
+                
                 new_stage_concepts = STAGE_RELEVANT_TRAIT_CONCEPTS.get(new_stage_name, [])
                 added_count = 0
-                for concept in new_stage_concepts:
+                for concept in random.sample(new_stage_concepts, k=min(len(new_stage_concepts), 2)): # Add up to 2 random relevant traits
                     if concept not in traits and added_count < 2:
                         traits[concept] = round(random.uniform(0.3,0.7),3); trait_first_seen[concept]=step
                         print(f"S{step}: Trait '{concept}' emerged with stage '{new_stage_name}'."); added_count+=1
-                    if added_count >= 2: break
         
         if len(conversation_history)>30:conversation_history=conversation_history[-30:]
         data_to_send={"traits":current_traits_snap,"trait_names":ctna,"history":history,"step":step,
@@ -360,7 +356,7 @@ async def soul_simulation():
         for wc in list(clients):
             try:await wc.send_json(data_to_send)
             except:clients.discard(wc)
-        step+=1; await asyncio.sleep(15)
+        step+=1; await asyncio.sleep(15) # Longer sleep for more API calls
 
 @app.on_event("startup")
 async def startup_event():asyncio.create_task(soul_simulation());print("Soul sim task created.")
@@ -375,7 +371,7 @@ async def websocket_endpoint(websocket:WebSocket):
 
 static_dir_name="static"
 if not os.path.exists(static_dir_name): os.makedirs(static_dir_name)
-# Ensure your updated index.html (provided separately) is in the static/index.html path
+# Ensure your updated index.html (provided in the other part of the response) is in static/index.html
 app.mount("/",StaticFiles(directory=static_dir_name,html=True),name="static")
 
 if __name__=="__main__":
