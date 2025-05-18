@@ -3,7 +3,7 @@ import random
 import os
 import requests 
 from datetime import datetime, timezone
-from fastapi import FastAPI, WebSocket, Request
+from fastapi import FastAPI, WebSocket, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
@@ -76,6 +76,9 @@ trait_first_seen = {k: 0 for k in FUNDAMENTAL_TRAITS}
 clients = set() 
 user_prompt_override = None 
 user_gemini_api_key = None 
+
+# --- Hardware Integration State ---
+hardware_modules = {}  # e.g., {'Camera': {'state': 'active', 'value': 0.8}, ...}
 
 # --- Helper Functions (Trait Stats, Correlations, Similarity Colors) ---
 def get_trait_statistics(trait_history_matrix: np.ndarray, trait_names: list[str], current_traits_dict: dict, window_size: int = 10) -> dict:
@@ -335,6 +338,102 @@ async def hardware_input(request: Request):
     data = await request.json()
     # Example: traits['perception'] = data.get('camera_input', traits['perception'])
     return JSONResponse({"status": "ok", "received": data})
+
+@app.post("/analyze_schematic")
+async def analyze_schematic(file: UploadFile):
+    # Read file content
+    content = await file.read()
+    # For now, just use the filename and content as a prompt to Gemini
+    prompt = (
+        "You are an expert in robotics and electronics. Given the following schematic file (name: " + file.filename + "), "
+        "analyze its content and list which of the following modules are present: "
+        "Camera, Microphone, Speaker, IR Sensor, Ultrasonic Sensor, Servo Motor, DC Motor, Stepper Motor, LIDAR, IMU, GPS, Temperature Sensor, Humidity Sensor, Pressure Sensor, Light Sensor, Touch Sensor, Proximity Sensor, Accelerometer, Gyroscope, Magnetometer, Gas Sensor, Flame Sensor, Vibration Sensor, Force Sensor, Color Sensor, RFID, Bluetooth, WiFi, Zigbee, LoRa, Relay, Buzzer, LED, LCD Display, OLED Display, E-Paper Display, Keypad, Joystick, Potentiometer, Rotary Encoder, SD Card, RTC, Power Module, Battery, Solar Panel, Fan, Pump, Valve, Laser, Thermocouple, Load Cell. "
+        "Then, suggest how these modules could be mapped to the following soul traits: self_awareness, agency, empathy, intentionality, memory, perception, reasoning, emotion, sociality, adaptability. "
+        "Respond in JSON: {modules: [list], trait_mapping: string}. "
+        "Here is the schematic content (base64 or text):\n" + (content[:1000].decode(errors='ignore') if isinstance(content, bytes) else str(content)[:1000])
+    )
+    try:
+        model = genai.GenerativeModel("models/gemini-2.0-flash")
+        response = model.generate_content(prompt)
+        import json
+        # Try to extract JSON from the response
+        import re
+        match = re.search(r'\{.*\}', response.text, re.DOTALL)
+        if match:
+            result = json.loads(match.group(0))
+            return JSONResponse({"status": "ok", "modules": result.get("modules", []), "trait_mapping": result.get("trait_mapping", "")})
+        else:
+            return JSONResponse({"status": "error", "error": "No JSON found in AI response."}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"status": "error", "error": str(e)}, status_code=400)
+
+@app.post("/register_module")
+async def register_module(request: Request):
+    data = await request.json()
+    name = data.get('name')
+    if not name:
+        return JSONResponse({"status": "error", "error": "No module name provided."}, status_code=400)
+    hardware_modules[name] = {"state": data.get('state', 'inactive'), "value": data.get('value', 0.0)}
+    return JSONResponse({"status": "ok", "modules": list(hardware_modules.keys())})
+
+@app.post("/update_module_state")
+async def update_module_state(request: Request):
+    data = await request.json()
+    name = data.get('name')
+    if name not in hardware_modules:
+        return JSONResponse({"status": "error", "error": "Module not registered."}, status_code=400)
+    hardware_modules[name].update({k: v for k, v in data.items() if k != 'name'})
+    # Expanded mapping: update soul traits based on module state
+    if hardware_modules[name]['state'] == 'active':
+        n = name.lower()
+        if n in ['camera', 'lidar', 'light sensor', 'color sensor', 'proximity sensor', 'ultrasonic sensor', 'ir sensor']:
+            traits['perception'] = min(1.0, traits['perception'] + 0.05)
+        if n in ['microphone', 'vibration sensor', 'sound sensor']:
+            traits['perception'] = min(1.0, traits['perception'] + 0.03)
+        if n in ['speaker', 'buzzer']:
+            traits['sociality'] = min(1.0, traits['sociality'] + 0.03)
+        if n in ['servo motor', 'dc motor', 'stepper motor', 'fan', 'pump', 'valve']:
+            traits['agency'] = min(1.0, traits['agency'] + 0.04)
+        if n in ['gps', 'imu', 'accelerometer', 'gyroscope', 'magnetometer']:
+            traits['adaptability'] = min(1.0, traits['adaptability'] + 0.03)
+        if n in ['temperature sensor', 'humidity sensor', 'pressure sensor', 'gas sensor', 'flame sensor', 'thermocouple', 'load cell']:
+            traits['reasoning'] = min(1.0, traits['reasoning'] + 0.02)
+        if n in ['rtc', 'sd card', 'memory', 'e-paper display', 'lcd display', 'oled display']:
+            traits['memory'] = min(1.0, traits['memory'] + 0.03)
+        if n in ['joystick', 'keypad', 'potentiometer', 'rotary encoder']:
+            traits['intentionality'] = min(1.0, traits['intentionality'] + 0.03)
+        if n in ['led', 'laser', 'relay']:
+            traits['emotion'] = min(1.0, traits['emotion'] + 0.02)
+        if n in ['battery', 'power module', 'solar panel']:
+            traits['self_awareness'] = min(1.0, traits['self_awareness'] + 0.02)
+        if n in ['rfid', 'bluetooth', 'wifi', 'zigbee', 'lora']:
+            traits['sociality'] = min(1.0, traits['sociality'] + 0.02)
+        if n in ['touch sensor', 'force sensor']:
+            traits['empathy'] = min(1.0, traits['empathy'] + 0.02)
+    return JSONResponse({"status": "ok", "module": name, "state": hardware_modules[name]})
+
+@app.get("/get_module_states")
+async def get_module_states():
+    return JSONResponse({"status": "ok", "modules": hardware_modules})
+
+# --- AI Code Suggestion Endpoint ---
+@app.post("/suggest_code")
+async def suggest_code(request: Request):
+    data = await request.json()
+    modules = data.get('modules', [])
+    goal = data.get('goal', 'move')
+    prompt = (
+        f"You are an expert robotics programmer. Given a robot with the following modules: {', '.join(modules)}, "
+        f"write Python code to achieve the following goal: '{goal}'. "
+        f"Use only the available modules. Assume you are programming a Raspberry Pi or similar microcontroller. "
+        f"Respond with only the code, no explanation."
+    )
+    try:
+        model = genai.GenerativeModel("models/gemini-2.0-flash")
+        response = model.generate_content(prompt)
+        return JSONResponse({"status": "ok", "code": response.text.strip()})
+    except Exception as e:
+        return JSONResponse({"status": "error", "error": str(e)}, status_code=400)
 
 if __name__=="__main__":
     import uvicorn;mn="chatbot";p=int(os.getenv("PORT",10000))

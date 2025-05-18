@@ -89,6 +89,7 @@
       <button class="tab" onclick="showTab('conversation-view')">Log</button>
       <button class="tab" onclick="showTab('theories-view')">Theories</button>
       <button class="tab" onclick="showTab('customization-view')">Settings</button>
+      <button class="tab" onclick="showTab('bodyenv')">Body & Environment</button>
     </div>
 
     <div id="traits-view" class="tab-content active container">
@@ -124,6 +125,25 @@
       <textarea id="prompt-box" rows="4" placeholder="Enter your custom base prompt for the AI's analytical statements here..."></textarea><br>
       <button id="set-prompt-btn">Set Custom Prompt</button>
       <span id="prompt-status" style="margin-left: 20px;"></span>
+    </div>
+
+    <div id="bodyenv" class="tab-content" style="display:none;">
+      <div style="display:flex;gap:30px;align-items:flex-start;">
+        <div style="width:220px;">
+          <input id="module-search" type="text" placeholder="Search modules..." style="width:100%;margin-bottom:10px;padding:6px;border-radius:6px;border:1px solid var(--panel-alt);">
+          <div id="module-library" style="height:500px;overflow-y:auto;border:1px solid var(--panel-alt);border-radius:8px;background:var(--panel);padding:10px;"></div>
+        </div>
+        <div style="flex:1;min-width:400px;">
+          <div id="robot-canvas" style="width:100%;height:400px;border:2px dashed var(--accent2);border-radius:10px;background:var(--panel-alt);position:relative;overflow:hidden;"></div>
+          <button id="toggle-3d-btn" style="margin-top:10px;padding:8px 18px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer;">Switch to 3D View (Coming Soon)</button>
+          <div style="margin-top:20px;">
+            <label><b>Upload Schematic:</b></label>
+            <input type="file" id="schematic-upload" accept="image/*,.json,.txt,.netlist">
+            <button id="analyze-schematic-btn" style="padding:6px 14px;border-radius:6px;background:var(--accent2);color:var(--fg);border:none;cursor:pointer;">Analyze</button>
+            <div id="schematic-analysis" style="margin-top:10px;background:var(--panel);padding:10px;border-radius:6px;min-height:60px;"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -372,6 +392,110 @@
         if (response.ok && responseData.status === 'ok') { statusSpan.textContent = responseData.prompt_set_to==="Custom"?'Custom base prompt successfully set!':'Custom prompt cleared. Using default system prompt.'; statusSpan.style.color = 'green';}
         else { statusSpan.textContent = `Error: ${responseData.message||'Failed to set prompt.'}`; statusSpan.style.color = 'red';}
       } catch (e) { statusSpan.textContent = 'Error: Failed to send prompt to server.'; statusSpan.style.color = 'red'; console.error("Fetch error for /set_prompt:", e);}
+    };
+
+    const MODULES = [
+      {name:'Camera',icon:'📷',desc:'Visual sensor for perception.'},
+      {name:'Microphone',icon:'🎤',desc:'Audio sensor for sound input.'},
+      {name:'Speaker',icon:'🔊',desc:'Audio output for communication.'},
+      {name:'IR Sensor',icon:'🌡️',desc:'Infrared sensor for proximity or heat.'},
+      {name:'Ultrasonic Sensor',icon:'📡',desc:'Distance measurement.'},
+      {name:'Servo Motor',icon:'🔩',desc:'Precise rotational actuator.'},
+      {name:'DC Motor',icon:'⚙️',desc:'General purpose motor.'},
+      {name:'Stepper Motor',icon:'🔃',desc:'Precise step-based motor.'},
+      {name:'LIDAR',icon:'🛰️',desc:'Laser-based distance sensor.'},
+      {name:'IMU',icon:'🧭',desc:'Inertial measurement unit.'},
+      {name:'GPS',icon:'📍',desc:'Global positioning system.'},
+      {name:'Temperature Sensor',icon:'🌡️',desc:'Measures temperature.'},
+      {name:'Humidity Sensor',icon:'💧',desc:'Measures humidity.'},
+      {name:'Pressure Sensor',icon:'⏲️',desc:'Measures pressure.'},
+      {name:'Light Sensor',icon:'💡',desc:'Detects light intensity.'},
+      {name:'Touch Sensor',icon:'🤚',desc:'Detects touch/contact.'},
+      {name:'Proximity Sensor',icon:'📶',desc:'Detects nearby objects.'},
+      {name:'Accelerometer',icon:'🏎️',desc:'Measures acceleration.'},
+      {name:'Gyroscope',icon:'🌀',desc:'Measures rotation.'},
+      {name:'Magnetometer',icon:'🧲',desc:'Measures magnetic field.'},
+      {name:'Gas Sensor',icon:'🫧',desc:'Detects gases.'},
+      {name:'Flame Sensor',icon:'🔥',desc:'Detects flame.'},
+      {name:'Vibration Sensor',icon:'💥',desc:'Detects vibration.'},
+      {name:'Force Sensor',icon:'🦾',desc:'Measures force/pressure.'},
+      {name:'Color Sensor',icon:'🎨',desc:'Detects color.'},
+      {name:'RFID',icon:'📛',desc:'Radio-frequency ID.'},
+      {name:'Bluetooth',icon:'📶',desc:'Wireless comm.'},
+      {name:'WiFi',icon:'📡',desc:'Wireless comm.'},
+      {name:'Zigbee',icon:'📶',desc:'Wireless comm.'},
+      {name:'LoRa',icon:'📶',desc:'Long-range wireless.'},
+      {name:'Relay',icon:'🔌',desc:'Switches circuits.'},
+      {name:'Buzzer',icon:'🔔',desc:'Makes sound.'},
+      {name:'LED',icon:'💡',desc:'Light emitting diode.'},
+      {name:'LCD Display',icon:'🖥️',desc:'Text/graphics display.'},
+      {name:'OLED Display',icon:'🖥️',desc:'High-contrast display.'},
+      {name:'E-Paper Display',icon:'📄',desc:'Low-power display.'},
+      {name:'Keypad',icon:'⌨️',desc:'Input buttons.'},
+      {name:'Joystick',icon:'🕹️',desc:'Directional input.'},
+      {name:'Potentiometer',icon:'🎚️',desc:'Variable resistor.'},
+      {name:'Rotary Encoder',icon:'🔄',desc:'Measures rotation.'},
+      {name:'SD Card',icon:'💾',desc:'Storage.'},
+      {name:'RTC',icon:'⏰',desc:'Real time clock.'},
+      {name:'Power Module',icon:'🔋',desc:'Power supply.'},
+      {name:'Battery',icon:'🔋',desc:'Portable power.'},
+      {name:'Solar Panel',icon:'🔆',desc:'Solar power.'},
+      {name:'Fan',icon:'🌀',desc:'Cooling.'},
+      {name:'Pump',icon:'💧',desc:'Moves fluids.'},
+      {name:'Valve',icon:'🚪',desc:'Controls flow.'},
+      {name:'Laser',icon:'🔦',desc:'Laser emitter.'},
+      {name:'Thermocouple',icon:'🌡️',desc:'Temperature probe.'},
+      {name:'Load Cell',icon:'⚖️',desc:'Measures weight.'}
+    ];
+    function renderModuleLibrary(filter='') {
+      const lib = document.getElementById('module-library');
+      lib.innerHTML = '';
+      MODULES.filter(m => m.name.toLowerCase().includes(filter.toLowerCase())).forEach(m => {
+        const d = document.createElement('div');
+        d.className = 'module-item';
+        d.style = 'padding:8px 0;display:flex;align-items:center;gap:10px;cursor:grab;border-bottom:1px solid var(--panel-alt);';
+        d.innerHTML = `<span style='font-size:1.5em;'>${m.icon}</span><span><b>${m.name}</b><br><span style='font-size:0.9em;color:var(--msg-meta);'>${m.desc}</span></span>`;
+        d.draggable = true;
+        d.ondragstart = e => { e.dataTransfer.setData('text/plain', m.name); };
+        lib.appendChild(d);
+      });
+    }
+    document.getElementById('module-search').oninput = e => renderModuleLibrary(e.target.value);
+    renderModuleLibrary();
+    // Drag-and-drop for robot canvas
+    const robotCanvas = document.getElementById('robot-canvas');
+    robotCanvas.ondragover = e => { e.preventDefault(); robotCanvas.style.background='#e0f7fa'; };
+    robotCanvas.ondragleave = e => { robotCanvas.style.background='var(--panel-alt)'; };
+    robotCanvas.ondrop = e => {
+      e.preventDefault();
+      robotCanvas.style.background='var(--panel-alt)';
+      const moduleName = e.dataTransfer.getData('text/plain');
+      const m = MODULES.find(x => x.name === moduleName);
+      if (m) {
+        const el = document.createElement('div');
+        el.className = 'robot-module';
+        el.style = `position:absolute;left:${e.offsetX-20}px;top:${e.offsetY-20}px;padding:6px 10px;background:var(--panel);border-radius:8px;border:1px solid var(--accent2);box-shadow:0 1px 4px #0001;cursor:move;`;
+        el.innerHTML = `<span style='font-size:1.3em;'>${m.icon}</span> <b>${m.name}</b>`;
+        el.draggable = true;
+        el.ondragstart = ev => { ev.dataTransfer.setData('text/plain', m.name); };
+        robotCanvas.appendChild(el);
+      }
+    };
+    // Schematic upload and AI analysis (placeholder)
+    document.getElementById('analyze-schematic-btn').onclick = async function() {
+      const fileInput = document.getElementById('schematic-upload');
+      const analysisDiv = document.getElementById('schematic-analysis');
+      if (!fileInput.files[0]) { analysisDiv.textContent = 'Please upload a schematic file.'; return; }
+      analysisDiv.textContent = 'Analyzing...';
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+      const resp = await fetch('/analyze_schematic', { method: 'POST', body: formData });
+      const data = await resp.json();
+      if (data.status === 'ok') {
+        analysisDiv.innerHTML = `<b>Modules Detected:</b> ${data.modules.join(', ')}<br><b>Suggested Trait Mapping:</b> ${data.trait_mapping}`;
+      } else {
+        analysisDiv.textContent = 'Analysis failed.';
+      }
     };
     // Initialize with default tab
     showTab('traits-view');
