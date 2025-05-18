@@ -5,29 +5,49 @@
   <title>Soul Trait Evolution (Live)</title>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <style>
-    body { background:#222; color:#fff; font-family:sans-serif; }
+    body { background:#23272e; color:#e0e0e0; font-family:sans-serif; }
+    .tabs { display: flex; margin-bottom: 20px; }
+    .tab {
+      padding: 12px 28px;
+      background: #2c313a;
+      color: #b0c4d4;
+      border-radius: 8px 8px 0 0;
+      margin-right: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      border: none;
+      outline: none;
+      transition: background 0.2s, color 0.2s;
+    }
+    .tab.active {
+      background: #3a4151;
+      color: #fff;
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
     #barplot { width:900px; height:350px; margin-bottom: 30px; }
     #timeline { width:900px; height:300px; margin-bottom: 30px; }
-    #trait-table {
-      background: #111;
-      color: #fff;
+    #trait-table, #discovered-table {
+      background: #2c313a;
+      color: #e0e0e0;
       font-family: 'Courier New', Courier, monospace;
       border-radius: 8px;
       max-width: 900px;
       margin: 0 auto 30px auto;
       border-collapse: collapse;
       width: 900px;
+      box-shadow: 0 2px 8px #0002;
     }
-    #trait-table th, #trait-table td {
-      border: 1px solid #333;
+    #trait-table th, #trait-table td, #discovered-table th, #discovered-table td {
+      border: 1px solid #3a4151;
       padding: 8px 12px;
       text-align: left;
     }
-    #trait-table th { background: #222; color: #0f0; }
-    #trait-table tr.dominant { background: #003300; }
+    #trait-table th, #discovered-table th { background: #3a4151; color: #aee1f9; }
+    #trait-table tr.dominant { background: #2e3a2c; }
     #terminal {
-      background: #111;
-      color: #0f0;
+      background: #2c313a;
+      color: #aee1f9;
       font-family: 'Courier New', Courier, monospace;
       padding: 20px;
       border-radius: 8px;
@@ -37,19 +57,69 @@
       white-space: pre-line;
       word-break: break-word;
       overflow-wrap: break-word;
+      box-shadow: 0 2px 8px #0002;
     }
+    #conversation {
+      background: #2c313a;
+      color: #e0e0e0;
+      font-family: 'Courier New', Courier, monospace;
+      border-radius: 8px;
+      max-width: 900px;
+      margin: 0 auto 30px auto;
+      padding: 20px;
+      min-height: 200px;
+      box-shadow: 0 2px 8px #0002;
+    }
+    .msg {
+      margin-bottom: 18px;
+      padding: 10px 16px;
+      border-radius: 6px;
+      background: #31363f;
+      color: #e0e0e0;
+      max-width: 80%;
+      box-shadow: 0 1px 4px #0001;
+    }
+    .msg.ai1 { background: #3a4151; color: #aee1f9; align-self: flex-start; }
+    .msg.ai2 { background: #2e3a2c; color: #e0e0e0; align-self: flex-end; }
+    .msg .meta { font-size: 0.9em; color: #b0c4d4; margin-bottom: 4px; }
+    .msg .text { white-space: pre-line; }
   </style>
 </head>
 <body>
   <h1>Soul Trait Evolution (Live)</h1>
-  <div id="barplot"></div>
-  <table id="trait-table"></table>
-  <div id="timeline"></div>
-  <div id="terminal">Waiting for data...</div>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('traits')">Traits Table</button>
+    <button class="tab" onclick="showTab('timeline')">Timeline</button>
+    <button class="tab" onclick="showTab('conversation')">Conversation</button>
+  </div>
+  <div id="traits" class="tab-content active">
+    <div id="barplot"></div>
+    <table id="trait-table"></table>
+    <table id="discovered-table"></table>
+    <div id="terminal">Waiting for data...</div>
+  </div>
+  <div id="timeline" class="tab-content">
+    <div id="timeline"></div>
+  </div>
+  <div id="conversation" class="tab-content">
+    <div id="conversation"></div>
+  </div>
   <script>
     let history = [];
     let traitNames = [];
+    let traitFirstSeen = {};
     let ws = new WebSocket("wss://" + window.location.host + "/ws");
+
+    function showTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(t => {
+        if (t.textContent.replace(/\s+/g, '').toLowerCase().includes(tab)) {
+          t.classList.add('active');
+        }
+      });
+      document.getElementById(tab).classList.add('active');
+    }
 
     function interpret(traits, dominance, dominantTrait) {
       let lines = Object.entries(traits).map(
@@ -59,7 +129,6 @@
       summary += dominance[dominantTrait] > 60
         ? "This trait is defining the soul right now."
         : "The soul is balancing multiple influences.";
-      // Add a blank line between the trait list and the summary
       return lines.join('\n') + "\n\n" + summary;
     }
 
@@ -67,7 +136,7 @@
       let names = Object.keys(traits);
       let values = names.map(k => traits[k]);
       let doms = names.map(k => dominance[k]);
-      let colors = names.map(k => doms[k] === Math.max(...doms) ? '#0f0' : '#3399ff');
+      let colors = names.map(k => doms[k] === Math.max(...doms) ? '#aee1f9' : '#6b7a8f');
       let data = [{
         x: names,
         y: values,
@@ -80,9 +149,9 @@
       let layout = {
         title: 'Current Soul Traits',
         yaxis: { range: [0, 1] },
-        plot_bgcolor: '#222',
-        paper_bgcolor: '#222',
-        font: { color: '#fff' }
+        plot_bgcolor: '#23272e',
+        paper_bgcolor: '#23272e',
+        font: { color: '#e0e0e0' }
       };
       Plotly.react('barplot', data, layout);
     }
@@ -98,15 +167,25 @@
       table.innerHTML = rows;
     }
 
+    function updateDiscoveredTable(traitFirstSeen, traits, step) {
+      let table = document.getElementById('discovered-table');
+      let rows = `<tr><th>Trait</th><th>First Seen (Step)</th><th>Current Value</th></tr>`;
+      let allTraits = Object.keys(traitFirstSeen).sort((a, b) => traitFirstSeen[a] - traitFirstSeen[b]);
+      for (let k of allTraits) {
+        let val = traits[k] !== undefined ? traits[k].toFixed(2) : '—';
+        rows += `<tr><td>${k}</td><td>${traitFirstSeen[k]}</td><td>${val}</td></tr>`;
+      }
+      table.innerHTML = rows;
+    }
+
     function updateTimeline(history, traitNames) {
-      // Prepare z matrix for heatmap: rows=time, cols=traits
       let z = history.map(snap => traitNames.map(t => snap[t] !== undefined ? snap[t] : null));
       let data = [{
         z: z,
         x: traitNames,
         y: Array.from({length: history.length}, (_, i) => i),
         type: 'heatmap',
-        colorscale: 'Viridis',
+        colorscale: 'YlGnBu',
         colorbar: { title: 'Value', tickvals: [0, 0.5, 1] },
         hoverongaps: false
       }];
@@ -114,12 +193,22 @@
         title: 'Trait Timeline (Heatmap)',
         xaxis: { title: 'Trait' },
         yaxis: { title: 'Step', autorange: 'reversed' },
-        plot_bgcolor: '#222',
-        paper_bgcolor: '#222',
-        font: { color: '#fff' },
+        plot_bgcolor: '#23272e',
+        paper_bgcolor: '#23272e',
+        font: { color: '#e0e0e0' },
         margin: { t: 40 }
       };
       Plotly.react('timeline', data, layout);
+    }
+
+    function updateConversation(conversation) {
+      let div = document.getElementById('conversation');
+      div.innerHTML = conversation.map(msg => `
+        <div class="msg ${msg.speaker.toLowerCase()}">
+          <div class="meta">${msg.speaker} &middot; ${new Date(msg.timestamp).toLocaleString()}</div>
+          <div class="text">${msg.text.replace(/\n/g, '<br>')}</div>
+        </div>
+      `).join('');
     }
 
     ws.onmessage = function(event) {
@@ -127,6 +216,7 @@
       let traits = data.traits;
       traitNames = data.trait_names;
       history = data.history;
+      traitFirstSeen = data.trait_first_seen;
       // Dominance calculation
       let sum = Object.values(traits).reduce((a, b) => a + b, 0) || 1;
       let dominance = {};
@@ -135,8 +225,10 @@
       // Update all visualizations
       updateBarPlot(traits, dominance);
       updateTraitTable(traits, dominance, dominantTrait);
+      updateDiscoveredTable(traitFirstSeen, traits, data.step);
       updateTimeline(history, traitNames);
       document.getElementById('terminal').textContent = interpret(traits, dominance, dominantTrait);
+      updateConversation(data.conversation_history);
     };
   </script>
 </body>
