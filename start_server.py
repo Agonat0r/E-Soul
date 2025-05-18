@@ -4,6 +4,11 @@ import os
 
 PORT = int(os.environ.get("PORT", 8080))
 
+# ✅ Create chat_log.txt if it doesn't exist yet
+if not os.path.exists("chat_log.txt"):
+    with open("chat_log.txt", "w", encoding="utf-8") as f:
+        f.write("Initializing Gemini Soul Reflection...\n")
+
 class CustomHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/" or self.path == "/index.html":
@@ -14,7 +19,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             html = """
             <html>
               <head>
-                <title>Gemini Self-Chat</title>
+                <title>Gemini Soul Terminal</title>
                 <style>
                   body {
                     font-family: monospace;
@@ -24,6 +29,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
                   }
                   h1 {
                     color: #0ff;
+                    margin-bottom: 0.5rem;
                   }
                   pre {
                     background: #000;
@@ -35,15 +41,18 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
                 </style>
               </head>
               <body>
-                <h1>Gemini Self-Chat</h1>
+                <h1>🧠 Gemini Soul Reflection</h1>
                 <pre id="terminal">Loading...</pre>
                 <script>
                   async function fetchLog() {
-                    const response = await fetch('/chat_log.txt');
-                    const text = await response.text();
-                    document.getElementById('terminal').textContent = text;
+                    try {
+                      const response = await fetch('/chat_log.txt');
+                      const text = await response.text();
+                      document.getElementById('terminal').textContent = text;
+                    } catch (e) {
+                      document.getElementById('terminal').textContent = "Error loading soul log...";
+                    }
                   }
-
                   fetchLog();
                   setInterval(fetchLog, 3000);  // refresh every 3 seconds
                 </script>
@@ -69,5 +78,5 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             self.send_error(404)
 
 with socketserver.TCPServer(("", PORT), CustomHandler) as httpd:
-    print(f"Serving on port {PORT}")
+    print(f"🌐 Serving on port {PORT}")
     httpd.serve_forever()
