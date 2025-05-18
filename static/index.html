@@ -712,8 +712,10 @@
         document.onmousemove = function(e) {
           if (isDragging && window._draggedMod === idx) {
             const rect = protoCanvas.getBoundingClientRect();
-            mod.x = Math.max(0, Math.min(e.clientX - rect.left - offsetX, rect.width - mod.width));
-            mod.y = Math.max(0, Math.min(e.clientY - rect.top - offsetY, rect.height - 30));
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            mod.x = Math.max(0, Math.min(mouseX - offsetX, protoCanvas.offsetWidth - mod.width));
+            mod.y = Math.max(0, Math.min(mouseY - offsetY, protoCanvas.offsetHeight - 30));
             renderProtoModules();
             renderProtoWires();
             e.preventDefault(); // Prevent text selection while dragging
@@ -1210,8 +1212,10 @@
         document.onmousemove = function(e) {
           if (isDragging && window._draggedMod === idx) {
             const rect = protoCanvas.getBoundingClientRect();
-            mod.x = Math.max(0, Math.min(e.clientX - rect.left - offsetX, rect.width - mod.width));
-            mod.y = Math.max(0, Math.min(e.clientY - rect.top - offsetY, rect.height - 30));
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            mod.x = Math.max(0, Math.min(mouseX - offsetX, protoCanvas.offsetWidth - mod.width));
+            mod.y = Math.max(0, Math.min(mouseY - offsetY, protoCanvas.offsetHeight - 30));
             renderProtoModules();
             renderProtoWires();
             e.preventDefault(); // Prevent text selection while dragging
