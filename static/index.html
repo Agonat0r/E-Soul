@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Soul Trait Evolution (Live)</title>
   <script src="https://cdn.plot.ly/plotly-2.27.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
   <style>
     :root {
       --bg: #f6f8fa; --fg: #222; --panel: #fff; --panel-alt: #e9eef3;
@@ -180,6 +181,9 @@
       </div>
     </div>
   </div>
+
+  <div id="threejs-canvas" style="width:100%;height:400px;display:none;"></div>
+  <button id="show-3d-btn" style="margin-bottom:10px;margin-right:10px;padding:7px 18px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-weight:bold;float:right;">Show 3D View</button>
 
   <script>
     let ws; 
@@ -638,27 +642,48 @@
           ${pins.map((p,i)=>`<div class='mcu-pin' data-pin='${p}' style='font-size:0.78em;padding:2px 4px;border-radius:4px;background:var(--panel-alt);border:1px solid var(--accent2);cursor:pointer;margin:1px 0;' onclick='protoPinClick("mcu","${p}")'>${p}</div>`).join('')}
         </div>
       </div>`;
-      // Move tool
+      // Move tool (pointer events, no global drag state)
       const box = mcuDiv.querySelector('.proto-mcu-box');
-      let isDragging = false, offsetX = 0, offsetY = 0;
-      box.onmousedown = function(e) {
+      box.onpointerdown = function(e) {
         if (e.target.classList.contains('delete-btn')) return;
-        isDragging = true;
-        offsetX = e.offsetX;
-        offsetY = e.offsetY;
-        document.body.style.cursor = 'move';
-      };
-      document.onmouseup = function() { isDragging = false; document.body.style.cursor = ''; };
-      document.onmousemove = function(e) {
-        if (isDragging) {
-          protoMCU.x = Math.max(0, Math.min(e.pageX - protoCanvas.getBoundingClientRect().left - offsetX, protoCanvas.offsetWidth-110));
-          protoMCU.y = Math.max(0, Math.min(e.pageY - protoCanvas.getBoundingClientRect().top - offsetY, protoCanvas.offsetHeight-30));
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const origX = protoMCU.x;
+        const origY = protoMCU.y;
+        function onPointerMove(ev) {
+          const dx = ev.clientX - startX;
+          const dy = ev.clientY - startY;
+          protoMCU.x = Math.max(0, Math.min(origX + dx, protoCanvas.offsetWidth-110));
+          protoMCU.y = Math.max(0, Math.min(origY + dy, protoCanvas.offsetHeight-30));
           renderProtoMCU();
           renderProtoWires();
         }
+        function onPointerUp() {
+          window.removeEventListener('pointermove', onPointerMove);
+          window.removeEventListener('pointerup', onPointerUp);
+          document.body.style.cursor = '';
+        }
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+        document.body.style.cursor = 'move';
+        e.preventDefault();
       };
       box.onmouseenter = () => { box.querySelector('.delete-btn').style.display = 'inline'; };
       box.onmouseleave = () => { box.querySelector('.delete-btn').style.display = 'none'; };
+    }
+    // Add Restart MCU Position button
+    if (!document.getElementById('restart-mcu-btn')) {
+      const restartBtn = document.createElement('button');
+      restartBtn.id = 'restart-mcu-btn';
+      restartBtn.textContent = 'Restart MCU Position';
+      restartBtn.style = 'margin-bottom:10px;margin-right:10px;padding:7px 18px;border-radius:6px;background:var(--accent2);color:var(--fg);border:none;cursor:pointer;font-weight:bold;float:right;';
+      restartBtn.onclick = function() {
+        protoMCU.x = 40;
+        protoMCU.y = 80;
+        renderProtoMCU();
+        renderProtoWires();
+      };
+      document.getElementById('prototyping-section').insertBefore(restartBtn, document.getElementById('auto-connect-btn'));
     }
     window.deleteProtoMCU = function() {
       protoMCU = null;
@@ -1229,6 +1254,44 @@
     renderProtoWires();
     renderProtoConnectionData();
     // ... existing code ...
+
+    document.getElementById('show-3d-btn').onclick = function() {
+      const threeDiv = document.getElementById('threejs-canvas');
+      threeDiv.style.display = threeDiv.style.display === 'none' ? 'block' : 'none';
+      if (!threeDiv._initialized) {
+        // Basic Three.js scene
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, threeDiv.offsetWidth/threeDiv.offsetHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(threeDiv.offsetWidth, threeDiv.offsetHeight);
+        threeDiv.appendChild(renderer.domElement);
+        // Add light
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(0, 1, 1).normalize();
+        scene.add(light);
+        // Add MCU as a box
+        const mcuGeo = new THREE.BoxGeometry(2, 1, 0.5);
+        const mcuMat = new THREE.MeshLambertMaterial({color: 0x2196f3});
+        const mcuMesh = new THREE.Mesh(mcuGeo, mcuMat);
+        mcuMesh.position.set(0, 0, 0);
+        scene.add(mcuMesh);
+        // Add modules as boxes
+        protoModules.forEach((mod, i) => {
+          const modGeo = new THREE.BoxGeometry(1, 1, 0.5);
+          const modMat = new THREE.MeshLambertMaterial({color: 0x4caf50});
+          const modMesh = new THREE.Mesh(modGeo, modMat);
+          modMesh.position.set(3 * Math.cos(i * Math.PI * 2 / protoModules.length), 3 * Math.sin(i * Math.PI * 2 / protoModules.length), 0);
+          scene.add(modMesh);
+        });
+        camera.position.z = 8;
+        function animate() {
+          requestAnimationFrame(animate);
+          renderer.render(scene, camera);
+        }
+        animate();
+        threeDiv._initialized = true;
+      }
+    };
   </script>
 </body>
 </html>
