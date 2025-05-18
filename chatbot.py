@@ -657,6 +657,26 @@ async def update_hardware_traits(request: Request):
         "personality_summary": personality_summary
     })
 
+@app.post("/ai_self_talk")
+async def ai_self_talk(request: Request):
+    data = await request.json()
+    modules = data.get('modules', [])
+    connections = data.get('connections', [])
+    mcus = data.get('mcus', [])
+    # Compose a prompt for Gemini
+    module_list = ', '.join([m.get('name', '?') for m in modules]) or 'none'
+    mcu_list = ', '.join([m.get('type', '?') for m in mcus]) or 'none'
+    conn_list = '\n'.join([f"Module '{modules[c['from']['mod']]['name']}' pin '{c['from']['pin']}' → MCU {c['to']['mcu']} pin '{c['to']['pin']}'" for c in connections if 'from' in c and 'to' in c and 'mod' in c['from'] and 'pin' in c['from'] and 'mcu' in c['to'] and 'pin' in c['to'] and c['from']['mod'] < len(modules)])
+    prompt = f"""
+You are an AI soul with a digital body made of real hardware modules and microcontrollers. Analyze your current hardware configuration and try to understand what each module is, what its function is, and how it should be connected. Suggest what each part should do and which pins should go where. Be quick, concise, and speak in first person as if thinking aloud. If you see connections, try to infer their purpose. If something is missing, mention it. 
+
+Current modules: {module_list}
+Current MCUs: {mcu_list}
+Current connections:\n{conn_list or 'none'}
+"""
+    analysis = call_gemini_api(prompt, "models/gemini-2.0-flash", context_for_log="AI Self-Talk", temperature=0.7)
+    return JSONResponse({"status": "ok", "analysis": analysis})
+
 if __name__=="__main__":
     import uvicorn;mn="chatbot";p=int(os.getenv("PORT",10000))
     print(f"🚀 Starting Uvicorn server on http://0.0.0.0:{p}")

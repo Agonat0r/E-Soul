@@ -1424,6 +1424,38 @@
       };
       document.getElementById('prototyping-section').insertBefore(randomBtn, document.getElementById('restart-mcu-btn'));
     }
+
+    // Add AI Self-Reflection/Analysis in Body & Environment tab
+    if (!document.getElementById('ai-self-talk-log')) {
+      const aiTalkDiv = document.createElement('div');
+      aiTalkDiv.id = 'ai-self-talk-log';
+      aiTalkDiv.style = 'margin-top:18px;background:var(--panel-alt);padding:16px;border-radius:8px;min-height:80px;max-height:220px;overflow-y:auto;font-family:monospace;font-size:1em;color:var(--msg-meta);';
+      aiTalkDiv.innerHTML = '<b>AI Self-Analysis:</b><br><span id="ai-self-talk-content">Waiting for hardware configuration...</span>';
+      document.getElementById('bodyenv').appendChild(aiTalkDiv);
+    }
+    let aiSelfTalkInterval = null;
+    function startAISelfTalk() {
+      if (aiSelfTalkInterval) clearInterval(aiSelfTalkInterval);
+      aiSelfTalkInterval = setInterval(async () => {
+        // Send current protoModules and protoConnections to backend for analysis
+        const resp = await fetch('/ai_self_talk', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({modules: protoModules, connections: protoConnections, mcus: protoMCUs})
+        });
+        const data = await resp.json();
+        if (data.status === 'ok' && data.analysis) {
+          document.getElementById('ai-self-talk-content').innerHTML = data.analysis.replace(/\n/g, '<br>');
+        } else {
+          document.getElementById('ai-self-talk-content').textContent = 'AI is thinking...';
+        }
+      }, 2000);
+    }
+    // Start AI self-talk when entering Body & Environment tab
+    const bodyenvTabBtn = Array.from(document.querySelectorAll('.tabs .tab')).find(btn => btn.getAttribute('onclick').includes("'bodyenv'"));
+    if (bodyenvTabBtn) {
+      bodyenvTabBtn.addEventListener('click', startAISelfTalk);
+    }
   </script>
 </body>
 </html>
