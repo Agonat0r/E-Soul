@@ -582,12 +582,31 @@
     // Initialize with default tab
     showTab('traits-view');
 
-    // --- Prototyping Canvas Logic ---
+    // --- Enhanced Prototyping Canvas Logic ---
     const MCU_PINOUTS = {
       arduino: ["D2","D3","D4","D5","D6","D7","D8","D9","D10","D11","D12","D13","A0","A1","A2","A3","A4","A5","5V","GND"],
       esp32: ["GPIO2","GPIO4","GPIO5","GPIO12","GPIO13","GPIO14","GPIO15","GPIO16","GPIO17","GPIO18","GPIO19","GPIO21","GPIO22","GPIO23","3V3","GND"],
       stm32: ["PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","PB10","PB11","PB12","PB13","PB14","PB15","3V3","GND"],
       pico: ["GP0","GP1","GP2","GP3","GP4","GP5","GP6","GP7","GP8","GP9","GP10","GP11","GP12","GP13","GP14","GP15","3V3","GND"]
+    };
+    // Top 3-5 models for demo; extend as needed
+    const MODULE_MODELS = {
+      "DC Source": [
+        {name: "3V Battery", pins: ["+","-"], maxV: 3},
+        {name: "5V Adapter", pins: ["+","-"], maxV: 5},
+        {name: "9V Battery", pins: ["+","-"], maxV: 9},
+        {name: "12V Supply", pins: ["+","-"], maxV: 12}
+      ],
+      "LED": [
+        {name: "Standard LED", pins: ["Anode","Cathode"], maxV: 3},
+        {name: "RGB LED", pins: ["R","G","B","Cathode"], maxV: 3},
+        {name: "High Power LED", pins: ["Anode","Cathode"], maxV: 3.5}
+      ],
+      "Servo Motor": [
+        {name: "SG90", pins: ["VCC","GND","Signal"], maxV: 6},
+        {name: "MG996R", pins: ["VCC","GND","Signal"], maxV: 7.2}
+      ],
+      // Add more modules and models as needed
     };
     const MODULE_PINOUTS = {
       "Ultrasonic Sensor": ["VCC","GND","Trig","Echo"],
@@ -595,11 +614,16 @@
       "LED": ["Anode","Cathode"],
       "Buzzer": ["+","-"],
       "Camera": ["VCC","GND","SDA","SCL"],
-      "Temperature Sensor": ["VCC","GND","Signal"]
+      "Temperature Sensor": ["VCC","GND","Signal"],
+      "DC Source": ["+","-"]
     };
     let protoModules = [];
     let protoConnections = [];
     let protoSelectedPin = null;
+    function getModuleModel(type, idx) {
+      const models = MODULE_MODELS[type] || [{name:type,pins:MODULE_PINOUTS[type]||["VCC","GND","Signal"]}];
+      return models[idx] || models[0];
+    }
     function renderProtoMCU() {
       const mcuType = document.getElementById('mcu-board-select').value;
       const pins = MCU_PINOUTS[mcuType] || [];
@@ -610,14 +634,53 @@
       const modDiv = document.getElementById('proto-modules');
       modDiv.innerHTML = '';
       protoModules.forEach((mod, idx) => {
-        const pins = MODULE_PINOUTS[mod.name] || ["VCC","GND","Signal"];
+        const models = MODULE_MODELS[mod.name] || [{name:mod.name,pins:MODULE_PINOUTS[mod.name]||["VCC","GND","Signal"]}];
+        const model = getModuleModel(mod.name, mod.modelIdx||0);
+        const pins = model.pins;
+        // Check if blown
+        let isBlown = mod.isBlown;
         const modEl = document.createElement('div');
         modEl.className = 'proto-module';
-        modEl.style = `position:absolute;left:${mod.x}px;top:${mod.y}px;width:110px;background:var(--panel);border:2px solid var(--accent2);border-radius:10px;padding:8px;z-index:2;`;
-        modEl.innerHTML = `<b>${mod.name}</b><br>${pins.map(p=>`<div class='mod-pin' data-mod='${idx}' data-pin='${p}' style='margin:2px 0;padding:2px 8px;border-radius:6px;background:var(--panel-alt);border:1px solid var(--accent2);cursor:pointer;font-size:0.95em;' onclick='protoPinClick("mod",${idx},"${p}")'>${p}</div>`).join('')}`;
+        modEl.style = `position:absolute;left:${mod.x}px;top:${mod.y}px;width:130px;background:var(--panel);border:2px solid ${isBlown?'#e53935':'var(--accent2)'};border-radius:10px;padding:8px;z-index:2;box-shadow:${isBlown?'0 0 10px #e5393555':''};`;
+        modEl.innerHTML = `
+          <div style='display:flex;align-items:center;justify-content:space-between;'>
+            <b>${mod.name}</b>
+            <span class='delete-btn' style='display:none;cursor:pointer;color:#e53935;font-size:1.2em;margin-left:8px;' onclick='deleteProtoModule(${idx})' title='Delete'>&times;</span>
+          </div>
+          <select onchange='changeProtoModel(${idx},this.value)' style='width:100%;margin:4px 0 6px 0;padding:2px 4px;border-radius:5px;'>
+            ${models.map((m,i)=>`<option value='${i}' ${i===(mod.modelIdx||0)?'selected':''}>${m.name}</option>`).join('')}
+          </select>
+          ${mod.name==="DC Source"||mod.name==="Battery"?`<input type='number' min='0' max='24' step='0.1' value='${mod.voltage||5}' onchange='setProtoVoltage(${idx},this.value)' style='width:90px;margin-bottom:4px;' placeholder='Voltage (V)'> V` : ''}
+          ${pins.map(p=>`<div class='mod-pin' data-mod='${idx}' data-pin='${p}' style='margin:2px 0;padding:2px 8px;border-radius:6px;background:${isBlown?'#ffcdd2':'var(--panel-alt)'};border:1px solid var(--accent2);cursor:pointer;font-size:0.95em;' onclick='protoPinClick("mod",${idx},"${p}")'>${p}</div>`).join('')}
+          ${isBlown?`<div style='color:#e53935;font-weight:bold;margin-top:4px;'>💥 Blown! Overvoltage</div>`:''}
+        `;
+        modEl.onmouseenter = () => { modEl.querySelector('.delete-btn').style.display = 'inline'; };
+        modEl.onmouseleave = () => { modEl.querySelector('.delete-btn').style.display = 'none'; };
         modDiv.appendChild(modEl);
       });
     }
+    window.deleteProtoModule = function(idx) {
+      protoModules.splice(idx,1);
+      // Remove connections to this module
+      protoConnections = protoConnections.filter(conn => conn.from.mod !== idx);
+      renderProtoModules();
+      renderProtoWires();
+      renderProtoConnectionData();
+    };
+    window.changeProtoModel = function(idx, modelIdx) {
+      protoModules[idx].modelIdx = parseInt(modelIdx);
+      protoModules[idx].isBlown = false;
+      renderProtoModules();
+      renderProtoWires();
+      renderProtoConnectionData();
+    };
+    window.setProtoVoltage = function(idx, v) {
+      protoModules[idx].voltage = parseFloat(v);
+      protoModules[idx].isBlown = false;
+      renderProtoModules();
+      renderProtoWires();
+      renderProtoConnectionData();
+    };
     window.protoPinClick = function(type, modIdxOrPin, pinName) {
       if (!protoSelectedPin) {
         protoSelectedPin = {type, modIdxOrPin, pinName};
@@ -634,6 +697,7 @@
           }
           protoConnections.push({from, to});
           protoSelectedPin = null;
+          checkProtoSafety();
           renderProtoWires();
           renderProtoConnectionData();
         } else {
@@ -641,14 +705,36 @@
         }
       }
     };
+    function checkProtoSafety() {
+      // For each connection, if from is DC Source and to is LED, check voltage
+      protoModules.forEach((mod, idx) => { mod.isBlown = false; });
+      protoConnections.forEach(conn => {
+        let fromMod = protoModules[conn.from.mod];
+        let toMod = protoModules[conn.to.mod];
+        // Check if DC Source is connected to LED (or other module with maxV)
+        if (fromMod && fromMod.name === "DC Source") {
+          let v = fromMod.voltage || 5;
+          let toIdx = conn.to.mod;
+          if (toIdx !== undefined && protoModules[toIdx]) {
+            let model = getModuleModel(protoModules[toIdx].name, protoModules[toIdx].modelIdx||0);
+            if (model.maxV && v > model.maxV) protoModules[toIdx].isBlown = true;
+          }
+        }
+        if (toMod && toMod.name === "DC Source") {
+          let v = toMod.voltage || 5;
+          let fromIdx = conn.from.mod;
+          if (fromIdx !== undefined && protoModules[fromIdx]) {
+            let model = getModuleModel(protoModules[fromIdx].name, protoModules[fromIdx].modelIdx||0);
+            if (model.maxV && v > model.maxV) protoModules[fromIdx].isBlown = true;
+          }
+        }
+      });
+    }
     function renderProtoWires() {
       const svg = document.getElementById('proto-wires');
       svg.innerHTML = '';
-      // For demo, just draw straight lines between module and mcu (not accurate positions)
       protoConnections.forEach(conn => {
-        // Find module and mcu pin positions
-        // For now, use rough positions
-        let x1 = 200, y1 = 40 + (conn.from.mod !== undefined ? conn.from.mod*60 : 0) + (conn.from.pin === 'VCC' ? 10 : conn.from.pin === 'GND' ? 30 : 50);
+        let x1 = 200, y1 = 40 + (conn.from.mod !== undefined ? conn.from.mod*80 : 0) + 30;
         let x2 = 80, y2 = 100 + (MCU_PINOUTS[document.getElementById('mcu-board-select').value].indexOf(conn.to.pin))*8;
         svg.innerHTML += `<line x1='${x1}' y1='${y1}' x2='${x2}' y2='${y2}' stroke='var(--accent)' stroke-width='3' marker-end='url(#arrowhead)'/>`;
       });
@@ -659,7 +745,10 @@
       if (protoConnections.length === 0) { div.textContent = 'No connections yet.'; return; }
       div.innerHTML = protoConnections.map(conn => {
         let modName = protoModules[conn.from.mod]?.name || '?';
-        return `${modName} [${conn.from.pin}] → MCU [${conn.to.pin}]`;
+        let toModName = protoModules[conn.to.mod]?.name;
+        let warn = '';
+        if (toModName && protoModules[conn.to.mod]?.isBlown) warn = ' <span style="color:#e53935;font-weight:bold;">(Blown!)</span>';
+        return `${modName} [${conn.from.pin}] → MCU [${conn.to.pin}]${warn}`;
       }).join('<br>');
     }
     document.getElementById('mcu-board-select').onchange = function() {
@@ -667,14 +756,13 @@
       renderProtoWires();
       renderProtoConnectionData();
     };
-    // Drag modules from library to prototyping canvas
     const protoCanvas = document.getElementById('proto-canvas-container');
     protoCanvas.ondragover = e => { e.preventDefault(); };
     protoCanvas.ondrop = e => {
       e.preventDefault();
       const moduleName = e.dataTransfer.getData('text/plain');
       if (!moduleName) return;
-      protoModules.push({name: moduleName, x: e.offsetX, y: e.offsetY});
+      protoModules.push({name: moduleName, x: e.offsetX, y: e.offsetY, modelIdx: 0, voltage: moduleName==="DC Source"?5:undefined});
       renderProtoModules();
       renderProtoWires();
       renderProtoConnectionData();
