@@ -1,7 +1,7 @@
 import asyncio
 import random
 import os
-import requests # Retained for potential future use, not strictly needed if only Gemini
+import requests 
 from datetime import datetime, timezone
 from fastapi import FastAPI, WebSocket, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,7 +42,7 @@ STAGE_RELEVANT_TRAIT_CONCEPTS = {
     "Proto-Sapient": ["tool-use", "symbolic-thought", "planning-basic", "social-hierarchy", "self-recognition-advanced"],
     "Sapient Being": ["abstract-logic", "long-term-planning", "ethical-framework", "creativity-expressive", "existential-inquiry", "knowledge-seeking"]
 }
-current_evolutionary_stage_index = 0 # Start at "Primordial Essence"
+current_evolutionary_stage_index = 0 
 
 # --- Trait Similarity Colors ---
 DEFAULT_COLORS_PALETTE = [
@@ -50,7 +50,7 @@ DEFAULT_COLORS_PALETTE = [
     "#9370DB", "#3CB371", "#F08080", "#ADD8E6", "#90EE90", "#FFFFE0", "#C8A2C8", "#DB7093", 
     "#AFEEEE", "#F5DEB3", "#DDA0DD", "#8FBC8F", "#FA8072", "#B0C4DE", "#98FB98", "#FAFAD2", "#E6E6FA" 
 ]
-DEFAULT_TRAIT_COLOR = "#B0B0B0" # Default grey
+DEFAULT_TRAIT_COLOR = "#B0B0B0" 
 
 # === Dynamic Soul Trait Logic ===
 initial_traits = {"energy-level": 0.5, "reactivity-to-stimuli": 0.6, "structural-integrity": 0.4}
@@ -69,18 +69,14 @@ def get_trait_statistics(trait_history_matrix: np.ndarray, trait_names: list[str
     stats = {}
     if not isinstance(trait_history_matrix, np.ndarray) or trait_history_matrix.ndim != 2 or trait_history_matrix.shape[0] == 0:
         for name, val in current_traits_dict.items():
-            stats[name] = {"current": round(val, 3), "change_last_step": 0.0, 
-                           "avg_recent_N": round(val, 3), "trend_slope_recent_N": 0.0, "window_N": 0}
-        return stats
-
-    num_history_steps, num_traits_in_hist_matrix = trait_history_matrix.shape
-
-    if num_traits_in_hist_matrix != len(trait_names):
-        print(f"Warning: Mismatch trait_names ({len(trait_names)}) vs history_matrix cols ({num_traits_in_hist_matrix})")
-        for name, val in current_traits_dict.items(): # Fallback
             stats[name] = {"current": round(val, 3), "change_last_step": 0.0, "avg_recent_N": round(val, 3), "trend_slope_recent_N": 0.0, "window_N": 0}
         return stats
-        
+    num_history_steps, num_traits_in_hist_matrix = trait_history_matrix.shape
+    if num_traits_in_hist_matrix != len(trait_names):
+        print(f"Warning: Mismatch trait_names ({len(trait_names)}) vs history_matrix cols ({num_traits_in_hist_matrix})")
+        for name, val in current_traits_dict.items(): 
+            stats[name] = {"current": round(val, 3), "change_last_step": 0.0, "avg_recent_N": round(val, 3), "trend_slope_recent_N": 0.0, "window_N": 0}
+        return stats
     for i, trait_name in enumerate(trait_names):
         current_value = current_traits_dict.get(trait_name, trait_history_matrix[-1, i] if num_history_steps > 0 else 0.0)
         actual_window_size = min(window_size, num_history_steps)
@@ -156,9 +152,8 @@ def call_gemini_api(prompt_text: str, model_name: str, context_for_log: str = "G
     except Exception as e: print(f"{context_for_log}: CRITICAL - API config error: {e}"); return f"Error: Gemini API Key Config Error for {context_for_log}."
     gc = genai.types.GenerationConfig(temperature=temperature,top_p=top_p,top_k=top_k,max_output_tokens=300)
     ss = [{"category":c,"threshold":"BLOCK_MEDIUM_AND_ABOVE"} for c in ["HARM_CATEGORY_HARASSMENT","HARM_CATEGORY_HATE_SPEECH","HARM_CATEGORY_SEXUALLY_EXPLICIT","HARM_CATEGORY_DANGEROUS_CONTENT"]]
-    # print(f"{context_for_log}: Model '{model_name}' prompt (start): '{prompt_text[:70]}...'") # Uncomment for deep prompt debugging
     try:
-        model = genai.GenerativeModel(model_name)
+        model = genai.GenerativeModel(model_name) # Assumes model_name is correct like "models/gemini-2.0-flash"
         response = model.generate_content(prompt_text,generation_config=gc,safety_settings=ss,request_options={"timeout":30})
         if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
             gt = "".join(p.text for p in response.candidates[0].content.parts if hasattr(p,'text')).strip()
@@ -166,11 +161,11 @@ def call_gemini_api(prompt_text: str, model_name: str, context_for_log: str = "G
         brm, fr = "", "Unknown";
         if hasattr(response,'prompt_feedback') and response.prompt_feedback.block_reason: brm=f" (Block: {response.prompt_feedback.block_reason_message or response.prompt_feedback.block_reason})"
         if hasattr(response,'candidates') and response.candidates and response.candidates[0].finish_reason: fr=response.candidates[0].finish_reason.name
-        if fr not in ["STOP","MAX_TOKENS","FINISH_REASON_UNSPECIFIED"]: brm+=f" (Finish Reason: {fr})" # Add finish reason if it's not a normal stop
+        if fr not in ["STOP","MAX_TOKENS","FINISH_REASON_UNSPECIFIED"]: brm+=f" (Finish Reason: {fr})"
         erm=f"Error: Empty/problematic response from '{model_name}' for {context_for_log}{brm}."
         print(f"{context_for_log}: {erm}"); 
-        if hasattr(response,'prompt_feedback'): print(f"Prompt Feedback: {response.prompt_feedback}")
-        if hasattr(response,'candidates'): print(f"Candidates: {response.candidates}")
+        if hasattr(response,'prompt_feedback'): print(f"PF: {response.prompt_feedback}")
+        if hasattr(response,'candidates'): print(f"Cand: {response.candidates}")
         return erm
     except google.api_core.exceptions.NotFound as e: erm=f"Error: Model '{model_name}' NOT FOUND for {context_for_log}. {e}"; print(f"{context_for_log}: CRIT - {erm}"); traceback.print_exc(); return erm
     except google.api_core.exceptions.InvalidArgument as e: erm=f"Error: INVALID API KEY/Argument for {context_for_log}. {e}"; print(f"{context_for_log}: CRIT - {erm}"); traceback.print_exc(); return erm
@@ -237,7 +232,7 @@ async def set_api_keys(request: Request):
         try:
             print(f"/set_api_keys: Validating Gemini key ...{gemini_key_req[-4:]}")
             genai.configure(api_key=gemini_key_req)
-            model_test = "models/gemini-2.0-flash" # User confirmed model
+            model_test = "models/gemini-2.0-flash" # User confirmed model for testing
             model = genai.GenerativeModel(model_test)
             print(f"/set_api_keys: Test call to '{model_test}'...")
             test_resp = model.generate_content("Test connectivity.", request_options={"timeout":10}) 
@@ -270,29 +265,61 @@ async def soul_simulation():
         if len(history)>200: history=history[-200:]
         
         current_traits_snap = traits.copy(); ctna = list(current_traits_snap.keys())
-        aptl_pca,pcp,cl,X_pca = [],[],[],np.array([])
-        ftc = {n:DEFAULT_COLORS_PALETTE[i%len(DEFAULT_COLORS_PALETTE)] for i,n in enumerate(ctna)}
-        mhfa_pca = 3
+        aptl_pca,pcp,cl,X_pca = [],[],[],np.array([]) # aptl_pca = all_past_traits_list for PCA
+        # Initialize ftc with default unique colors for all current traits first
+        ftc = {name: DEFAULT_COLORS_PALETTE[i % len(DEFAULT_COLORS_PALETTE)] for i, name in enumerate(ctna)}
+        mhfa_pca = 3 # Min history for any analysis for PCA/Colors
 
         if len(history)>=mhfa_pca:
             ats_pca_s={k for s in history for k in s}; aptl_pca=sorted(list(ats_pca_s))
-            if aptl_pca:
+            if aptl_pca: # Check if aptl_pca is not empty
                 Xl_pca=[[s.get(kt,0.0)for kt in aptl_pca]for s in history]; X_pca=np.array(Xl_pca)
-                if X_pca.shape[0]>=mhfa_pca and X_pca.shape[1]>0:
+                if X_pca.shape[0]>=mhfa_pca and X_pca.shape[1]>0: # Check X_pca has valid dimensions
+                    # --- PCA ---
                     npc=min(2,X_pca.shape[0],X_pca.shape[1])
-                    if npc>=1: try:pca=PCA(n_components=npc);pcp=pca.fit_transform(X_pca).tolist() except:pass
+                    if npc>=1: 
+                        try:
+                            pca_instance=PCA(n_components=npc)
+                            pcp=pca_instance.fit_transform(X_pca).tolist()
+                        except Exception as e_pca_detail:
+                            print(f"S{step} PCA calculation error: {e_pca_detail}")
+                            # pcp remains []
+                    
+                    # --- KMeans ---
                     nkc=min(4,X_pca.shape[0])
-                    if nkc>=1: try:km=KMeans(n_clusters=nkc,n_init='auto',random_state=0);cl=km.fit_predict(X_pca).tolist() except:pass
+                    if nkc>=1: 
+                        try:
+                            # Try/except for KMeans n_init, common scikit-learn version variance
+                            try: kmeans_instance = KMeans(n_clusters=nkc, n_init='auto', random_state=0)
+                            except TypeError: kmeans_instance = KMeans(n_clusters=nkc, n_init=10, random_state=0)
+                            cl=kmeans_instance.fit_predict(X_pca).tolist()
+                        except Exception as e_kmeans_detail:
+                            print(f"S{step} KMeans calculation error: {e_kmeans_detail}")
+                            # cl remains []
+                    
+                    # --- Trait Similarity Colors ---
+                    # This uses X_pca and aptl_pca (all traits in full history)
                     if X_pca.ndim==2 and X_pca.shape[0]>=1 and X_pca.shape[1]==len(aptl_pca):
-                        cfs=calculate_trait_similarities_and_colors(aptl_pca,X_pca,min_history_steps_for_similarity=mhfa_pca); ftc.update(cfs)
-                    uc=set(ftc.values());ap=[c for c in DEFAULT_COLORS_PALETTE if c not in uc] or DEFAULT_COLORS_PALETTE;cin=0
-                    for n in ctna: 
-                        if n not in ftc: ftc[n]=ap[cin%len(ap)];cin+=1
-                    ftc={n:ftc.get(n,DEFAULT_TRAIT_COLOR) for n in ctna}
+                        # print(f"S{step} Calculating similarity colors for {len(aptl_pca)} traits in PCA history.")
+                        similarity_based_colors = calculate_trait_similarities_and_colors(aptl_pca, X_pca, min_history_steps_for_similarity=mhfa_pca)
+                        ftc.update(similarity_based_colors) # Override initial unique colors with group colors
         
-        trait_stats={}, corr_sum_list=["Awaiting sufficient historical data."]
+        # Ensure all CURRENT traits have a color, even if new and not in aptl_pca
+        # This re-applies defaults if a current trait somehow wasn't in ftc after update
+        used_colors_final = set(ftc.values())
+        available_palette_final = [c for c in DEFAULT_COLORS_PALETTE if c not in used_colors_final] or DEFAULT_COLORS_PALETTE
+        color_idx_final = 0
+        for name_final in ctna: 
+            if name_final not in ftc: 
+                ftc[name_final] = available_palette_final[color_idx_final % len(available_palette_final)]
+                color_idx_final += 1
+        # Final safety net to assign default if any current trait is still uncolored
+        ftc = {name: ftc.get(name, DEFAULT_TRAIT_COLOR) for name in ctna}
+
+        
+        trait_stats={}, corr_sum_list=["Awaiting sufficient historical data for analysis."]
         hist_for_analysis=history[max(0,len(history)-stats_window):]
-        min_steps_for_stats=3
+        min_steps_for_stats=3 # Local min_steps for this specific analysis section
         if len(hist_for_analysis)>=min_steps_for_stats:
             traits_in_win_set={k for s in hist_for_analysis for k in s}; traits_in_win_list=sorted(list(traits_in_win_set))
             if traits_in_win_list:
@@ -303,7 +330,7 @@ async def soul_simulation():
 
         analytical_statement = generate_analytical_statement(trait_stats,corr_sum_list,current_stage_name,step)
         conversation_history.append({"speaker":f"AI Soul ({current_stage_name})","text":analytical_statement,"timestamp":datetime.now(timezone.utc).isoformat(),"type":"analysis", "step": step})
-        # print(f"S{step} Analytical Statement: '{analytical_statement[:70]}...'") # Reduce default logging
+        # print(f"S{step} Analytical Statement: '{analytical_statement[:70]}...'") 
 
         if step>0 and step%theory_interval==0:
             print(f"S{step} Updating theory (Stage: {current_stage_name})...");
@@ -323,8 +350,7 @@ async def soul_simulation():
 
         if step>0 and step%stage_check_interval==0 and current_evolutionary_stage_index<len(EVOLUTIONARY_STAGES)-1:
             adv=False; csi_before_adv = current_evolutionary_stage_index 
-            # --- Define your advancement criteria here ---
-            # This is placeholder logic; make it more sophisticated!
+            # --- More sophisticated advancement criteria needed here ---
             if EVOLUTIONARY_STAGES[csi_before_adv]["name"] == "Primordial Essence" and step > (10 + csi_before_adv*5) : adv = True 
             elif EVOLUTIONARY_STAGES[csi_before_adv]["name"] == "Microorganism" and traits.get('motility',0) > 0.6 and step > (25 + csi_before_adv*5) : adv = True
             elif EVOLUTIONARY_STAGES[csi_before_adv]["name"] == "Colonial Organism" and traits.get('group-synchrony',0) > 0.5 and len(traits) > (len(initial_traits)+1) and step > (40 + csi_before_adv*5): adv = True
@@ -338,10 +364,9 @@ async def soul_simulation():
                 new_stage_name=EVOLUTIONARY_STAGES[current_evolutionary_stage_index]["name"]
                 evo_msg=f"EVOLUTIONARY ADVANCEMENT: Stage {csi_before_adv+1} '{old_stage_name}' --> Stage {current_evolutionary_stage_index+1} '{new_stage_name}' at step {step}."
                 print(evo_msg);conversation_history.append({"speaker":"SYSTEM (Evolution)","text":evo_msg,"timestamp":datetime.now(timezone.utc).isoformat(),"type":"evolution", "step": step})
-                
                 new_stage_concepts = STAGE_RELEVANT_TRAIT_CONCEPTS.get(new_stage_name, [])
                 added_count = 0
-                for concept in random.sample(new_stage_concepts, k=min(len(new_stage_concepts), 2)): # Add up to 2 random relevant traits
+                for concept in random.sample(new_stage_concepts, k=min(len(new_stage_concepts), 2)): 
                     if concept not in traits and added_count < 2:
                         traits[concept] = round(random.uniform(0.3,0.7),3); trait_first_seen[concept]=step
                         print(f"S{step}: Trait '{concept}' emerged with stage '{new_stage_name}'."); added_count+=1
@@ -356,7 +381,7 @@ async def soul_simulation():
         for wc in list(clients):
             try:await wc.send_json(data_to_send)
             except:clients.discard(wc)
-        step+=1; await asyncio.sleep(15) # Longer sleep for more API calls
+        step+=1; await asyncio.sleep(15) # Increased sleep
 
 @app.on_event("startup")
 async def startup_event():asyncio.create_task(soul_simulation());print("Soul sim task created.")
