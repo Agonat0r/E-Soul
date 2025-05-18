@@ -582,14 +582,13 @@
     // Initialize with default tab
     showTab('traits-view');
 
-    // --- Enhanced Prototyping Canvas Logic ---
+    // --- Enhanced Prototyping Canvas Logic (Miniaturized Pinouts, Move, Delete) ---
     const MCU_PINOUTS = {
       arduino: ["D2","D3","D4","D5","D6","D7","D8","D9","D10","D11","D12","D13","A0","A1","A2","A3","A4","A5","5V","GND"],
       esp32: ["GPIO2","GPIO4","GPIO5","GPIO12","GPIO13","GPIO14","GPIO15","GPIO16","GPIO17","GPIO18","GPIO19","GPIO21","GPIO22","GPIO23","3V3","GND"],
       stm32: ["PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","PB10","PB11","PB12","PB13","PB14","PB15","3V3","GND"],
       pico: ["GP0","GP1","GP2","GP3","GP4","GP5","GP6","GP7","GP8","GP9","GP10","GP11","GP12","GP13","GP14","GP15","3V3","GND"]
     };
-    // Top 3-5 models for demo; extend as needed
     const MODULE_MODELS = {
       "DC Source": [
         {name: "3V Battery", pins: ["+","-"], maxV: 3},
@@ -606,7 +605,6 @@
         {name: "SG90", pins: ["VCC","GND","Signal"], maxV: 6},
         {name: "MG996R", pins: ["VCC","GND","Signal"], maxV: 7.2}
       ],
-      // Add more modules and models as needed
     };
     const MODULE_PINOUTS = {
       "Ultrasonic Sensor": ["VCC","GND","Trig","Echo"],
@@ -620,16 +618,53 @@
     let protoModules = [];
     let protoConnections = [];
     let protoSelectedPin = null;
+    let protoMCU = {type: document.getElementById('mcu-board-select').value, x: 40, y: 80};
     function getModuleModel(type, idx) {
       const models = MODULE_MODELS[type] || [{name:type,pins:MODULE_PINOUTS[type]||["VCC","GND","Signal"]}];
       return models[idx] || models[0];
     }
     function renderProtoMCU() {
-      const mcuType = document.getElementById('mcu-board-select').value;
+      const mcuType = protoMCU.type;
       const pins = MCU_PINOUTS[mcuType] || [];
       const mcuDiv = document.getElementById('proto-mcu');
-      mcuDiv.innerHTML = `<div style='width:120px;height:180px;background:var(--panel);border:2px solid var(--accent);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;'><b style='margin-bottom:8px;'>${mcuType.toUpperCase()}</b>${pins.map((p,i)=>`<div class='mcu-pin' data-pin='${p}' style='margin:2px 0;padding:2px 8px;border-radius:6px;background:var(--panel-alt);border:1px solid var(--accent2);cursor:pointer;font-size:0.95em;' onclick='protoPinClick("mcu","${p}")'>${p}</div>`).join('')}</div>`;
+      mcuDiv.innerHTML = `<div class='proto-mcu-box' style='position:absolute;left:${protoMCU.x}px;top:${protoMCU.y}px;width:110px;min-height:30px;background:var(--panel);border:2px solid var(--accent);border-radius:10px;padding:6px 4px 6px 4px;z-index:2;box-shadow:0 1px 4px #0001;cursor:move;'>
+        <div style='display:flex;align-items:center;justify-content:space-between;'>
+          <b style='font-size:1em;'>${mcuType.toUpperCase()}</b>
+          <span class='delete-btn' style='display:none;cursor:pointer;color:#e53935;font-size:1.2em;margin-left:8px;' onclick='deleteProtoMCU()' title='Delete'>&times;</span>
+        </div>
+        <div style='display:flex;flex-wrap:wrap;gap:2px 4px;margin-top:2px;'>
+          ${pins.map((p,i)=>`<div class='mcu-pin' data-pin='${p}' style='font-size:0.78em;padding:2px 4px;border-radius:4px;background:var(--panel-alt);border:1px solid var(--accent2);cursor:pointer;margin:1px 0;' onclick='protoPinClick("mcu","${p}")'>${p}</div>`).join('')}
+        </div>
+      </div>`;
+      // Move tool
+      const box = mcuDiv.querySelector('.proto-mcu-box');
+      let isDragging = false, offsetX = 0, offsetY = 0;
+      box.onmousedown = function(e) {
+        if (e.target.classList.contains('delete-btn')) return;
+        isDragging = true;
+        offsetX = e.offsetX;
+        offsetY = e.offsetY;
+        document.body.style.cursor = 'move';
+      };
+      document.onmouseup = function() { isDragging = false; document.body.style.cursor = ''; };
+      document.onmousemove = function(e) {
+        if (isDragging) {
+          protoMCU.x = Math.max(0, Math.min(e.pageX - protoCanvas.getBoundingClientRect().left - offsetX, protoCanvas.offsetWidth-110));
+          protoMCU.y = Math.max(0, Math.min(e.pageY - protoCanvas.getBoundingClientRect().top - offsetY, protoCanvas.offsetHeight-30));
+          renderProtoMCU();
+          renderProtoWires();
+        }
+      };
+      box.onmouseenter = () => { box.querySelector('.delete-btn').style.display = 'inline'; };
+      box.onmouseleave = () => { box.querySelector('.delete-btn').style.display = 'none'; };
     }
+    window.deleteProtoMCU = function() {
+      protoMCU = null;
+      protoConnections = protoConnections.filter(conn => conn.to.mcu === undefined && conn.from.mcu === undefined);
+      document.getElementById('proto-mcu').innerHTML = '';
+      renderProtoWires();
+      renderProtoConnectionData();
+    };
     function renderProtoModules() {
       const modDiv = document.getElementById('proto-modules');
       modDiv.innerHTML = '';
@@ -637,23 +672,43 @@
         const models = MODULE_MODELS[mod.name] || [{name:mod.name,pins:MODULE_PINOUTS[mod.name]||["VCC","GND","Signal"]}];
         const model = getModuleModel(mod.name, mod.modelIdx||0);
         const pins = model.pins;
-        // Check if blown
         let isBlown = mod.isBlown;
+        mod.width = Math.max(90, 18 * pins.length + 30);
         const modEl = document.createElement('div');
         modEl.className = 'proto-module';
-        modEl.style = `position:absolute;left:${mod.x}px;top:${mod.y}px;width:130px;background:var(--panel);border:2px solid ${isBlown?'#e53935':'var(--accent2)'};border-radius:10px;padding:8px;z-index:2;box-shadow:${isBlown?'0 0 10px #e5393555':''};`;
+        modEl.style = `position:absolute;left:${mod.x}px;top:${mod.y}px;width:${mod.width}px;min-height:30px;background:var(--panel);border:2px solid ${isBlown?'#e53935':'var(--accent2)'};border-radius:10px;padding:6px 4px 6px 4px;z-index:2;box-shadow:${isBlown?'0 0 10px #e5393555':''};cursor:move;`;
         modEl.innerHTML = `
           <div style='display:flex;align-items:center;justify-content:space-between;'>
-            <b>${mod.name}</b>
+            <b style='font-size:1em;'>${mod.name}</b>
             <span class='delete-btn' style='display:none;cursor:pointer;color:#e53935;font-size:1.2em;margin-left:8px;' onclick='deleteProtoModule(${idx})' title='Delete'>&times;</span>
           </div>
-          <select onchange='changeProtoModel(${idx},this.value)' style='width:100%;margin:4px 0 6px 0;padding:2px 4px;border-radius:5px;'>
+          <select onchange='changeProtoModel(${idx},this.value)' style='width:100%;margin:4px 0 6px 0;padding:2px 4px;border-radius:5px;font-size:0.85em;'>
             ${models.map((m,i)=>`<option value='${i}' ${i===(mod.modelIdx||0)?'selected':''}>${m.name}</option>`).join('')}
           </select>
-          ${mod.name==="DC Source"||mod.name==="Battery"?`<input type='number' min='0' max='24' step='0.1' value='${mod.voltage||5}' onchange='setProtoVoltage(${idx},this.value)' style='width:90px;margin-bottom:4px;' placeholder='Voltage (V)'> V` : ''}
-          ${pins.map(p=>`<div class='mod-pin' data-mod='${idx}' data-pin='${p}' style='margin:2px 0;padding:2px 8px;border-radius:6px;background:${isBlown?'#ffcdd2':'var(--panel-alt)'};border:1px solid var(--accent2);cursor:pointer;font-size:0.95em;' onclick='protoPinClick("mod",${idx},"${p}")'>${p}</div>`).join('')}
+          ${mod.name==="DC Source"||mod.name==="Battery"?`<input type='number' min='0' max='24' step='0.1' value='${mod.voltage||5}' onchange='setProtoVoltage(${idx},this.value)' style='width:70px;margin-bottom:4px;font-size:0.85em;' placeholder='Voltage (V)'> V` : ''}
+          <div style='display:flex;flex-wrap:wrap;gap:2px 4px;'>
+            ${pins.map(p=>`<div class='mod-pin' data-mod='${idx}' data-pin='${p}' style='font-size:0.78em;padding:2px 4px;border-radius:4px;background:${isBlown?'#ffcdd2':'var(--panel-alt)'};border:1px solid var(--accent2);cursor:pointer;margin:1px 0;' onclick='protoPinClick("mod",${idx},"${p}")'>${p}</div>`).join('')}
+          </div>
           ${isBlown?`<div style='color:#e53935;font-weight:bold;margin-top:4px;'>💥 Blown! Overvoltage</div>`:''}
         `;
+        // Move tool
+        let isDragging = false, offsetX = 0, offsetY = 0;
+        modEl.onmousedown = function(e) {
+          if (e.target.classList.contains('delete-btn')) return;
+          isDragging = true;
+          offsetX = e.offsetX;
+          offsetY = e.offsetY;
+          document.body.style.cursor = 'move';
+        };
+        document.onmouseup = function() { isDragging = false; document.body.style.cursor = ''; };
+        document.onmousemove = function(e) {
+          if (isDragging) {
+            mod.x = Math.max(0, Math.min(e.pageX - protoCanvas.getBoundingClientRect().left - offsetX, protoCanvas.offsetWidth-mod.width));
+            mod.y = Math.max(0, Math.min(e.pageY - protoCanvas.getBoundingClientRect().top - offsetY, protoCanvas.offsetHeight-30));
+            renderProtoModules();
+            renderProtoWires();
+          }
+        };
         modEl.onmouseenter = () => { modEl.querySelector('.delete-btn').style.display = 'inline'; };
         modEl.onmouseleave = () => { modEl.querySelector('.delete-btn').style.display = 'none'; };
         modDiv.appendChild(modEl);
@@ -661,8 +716,7 @@
     }
     window.deleteProtoModule = function(idx) {
       protoModules.splice(idx,1);
-      // Remove connections to this module
-      protoConnections = protoConnections.filter(conn => conn.from.mod !== idx);
+      protoConnections = protoConnections.filter(conn => conn.from.mod !== idx && conn.to.mod !== idx);
       renderProtoModules();
       renderProtoWires();
       renderProtoConnectionData();
