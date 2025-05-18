@@ -8,24 +8,25 @@
     :root {
       --bg: #f6f8fa; --fg: #222; --panel: #fff; --panel-alt: #e9eef3;
       --accent: #4a90e2; --accent2: #b2c7e1; --table-header: #e9eef3; --table-row: #f6f8fa;
-      --dominant: #e3f2fd; --msg-ai: #e3f2fd; /* Main AI color */
-      --msg-selfreply: #e0f2f1; /* Lighter, distinct color for self-replies */
+      --dominant: #e3f2fd; 
+      --msg-ai-soul: #e3f2fd; /* Main AI analysis/reflection */
+      --msg-system-evolution: #d1c4e9; /* For stage transition messages */
       --msg-meta: #7b8a99;
     }
     body.soft-blue {
       --bg: #eaf3fb; --fg: #223344; --panel: #f7fbff; --panel-alt: #dbeafe;
       --accent: #4a90e2; --accent2: #b2c7e1; --table-header: #dbeafe; --table-row: #eaf3fb;
-      --dominant: #b3e5fc; --msg-ai: #b3e5fc; --msg-selfreply: #c8e6c9; --msg-meta: #607d8b;
+      --dominant: #b3e5fc; --msg-ai-soul: #b3e5fc; --msg-system-evolution: #d1c4e9; --msg-meta: #607d8b;
     }
     body.solarized {
       --bg: #fdf6e3; --fg: #657b83; --panel: #f5eecb; --panel-alt: #eee8d5;
       --accent: #268bd2; --accent2: #b58900; --table-header: #eee8d5; --table-row: #fdf6e3;
-      --dominant: #b58900; --msg-ai: #eee8d5; --msg-selfreply: #d0e0d0; --msg-meta: #657b83;
+      --dominant: #b58900; --msg-ai-soul: #eee8d5; --msg-system-evolution: #cebddb; --msg-meta: #657b83;
     }
     body.pastel {
       --bg: #f8f7fa; --fg: #4b3f72; --panel: #f3e8ff; --panel-alt: #e0c3fc;
       --accent: #a3cef1; --accent2: #f9c6c9; --table-header: #e0c3fc; --table-row: #f8f7fa;
-      --dominant: #f9c6c9; --msg-ai: #e0c3fc; --msg-selfreply: #d1c4e9; --msg-meta: #4b3f72;
+      --dominant: #f9c6c9; --msg-ai-soul: #e0c3fc; --msg-system-evolution: #d1c4e9; --msg-meta: #4b3f72;
     }
     body { background: var(--bg); color: var(--fg); font-family: sans-serif; transition: background 0.3s, color 0.3s; margin: 0; padding: 20px; }
     .tabs { display: flex; margin-bottom: 20px; flex-wrap: wrap; }
@@ -39,28 +40,32 @@
     #trait-table th, #discovered-table th { background: var(--table-header); color: var(--accent); font-weight: bold; }
     #trait-table tr.dominant { background: var(--dominant); }
     #terminal { background: var(--panel); color: var(--fg); font-family: 'Courier New', Courier, monospace; padding: 20px; border-radius: 8px; min-height: 120px; max-width: 900px; margin: 0 auto; white-space: pre-wrap; word-break: break-word; overflow-wrap: break-word; box-shadow: 0 2px 8px #0002; border: 1px solid var(--panel-alt); }
-    #conversation-display-area, #theories-display-area { /* Common styling for these areas */
+    #conversation-display-area, #theories-display-area { 
         background: var(--panel); color: var(--fg); font-family: 'Courier New', Courier, monospace;
         border-radius: 8px; max-width: 900px; margin: 0 auto 30px auto;
-        padding: 20px; min-height: 200px; box-shadow: 0 2px 8px #0002;
-        border: 1px solid var(--panel-alt); max-height: 500px; overflow-y: auto;
+        padding: 20px; min-height: 150px; box-shadow: 0 2px 8px #0002;
+        border: 1px solid var(--panel-alt); max-height: 400px; overflow-y: auto;
     }
     .conversation-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; max-width: 900px; margin-left: auto; margin-right: auto;}
     .conversation-nav button { padding: 8px 15px; }
     #msg-counter { font-weight: bold; color: var(--accent); }
-    .msg { margin-bottom: 18px; padding: 10px 16px; border-radius: 6px; background: var(--panel-alt); color: var(--fg); max-width: 85%; box-shadow: 0 1px 4px #0001; line-height: 1.4; }
-    .msg.ai { background: var(--msg-ai); color: var(--fg); align-self: flex-start; }
-    .msg.ai-selfreply { background: var(--msg-selfreply); color: var(--fg); align-self: flex-start; margin-left: 20px; }
-    .msg .meta { font-size: 0.85em; color: var(--msg-meta); margin-bottom: 4px; }
+    .msg { margin-bottom: 12px; padding: 10px 16px; border-radius: 12px; background: var(--panel-alt); color: var(--fg); max-width: 95%; box-shadow: 0 1px 3px rgba(0,0,0,0.1); line-height: 1.4; }
+    .msg.ai-soul, .msg.ai-soul-analysis, .msg.ai-soul-self-reply  { background: var(--msg-ai-soul); color: var(--fg); align-self: flex-start; border-left: 3px solid var(--accent); }
+    .msg.system-evolution { background: var(--msg-system-evolution); color: var(--fg); align-self: center; text-align: center; font-style: italic; border-left: 3px solid #805ad5; max-width: 100%;}
+    .msg .meta { font-size: 0.8em; color: var(--msg-meta); margin-bottom: 5px; }
     .msg .text { white-space: pre-wrap; }
     .theme-select, input[type="password"], input[type="text"], textarea, button { margin-bottom:12px;padding:10px;border-radius:6px;border:1px solid var(--panel-alt); background:var(--panel);color:var(--fg); font-size: 1em; box-sizing: border-box; }
     button { background:var(--accent);color:#fff;border:none;cursor:pointer; }
     input[type="password"], input[type="text"], textarea { width: calc(100% - 22px); }
     .container { max-width: 900px; margin: 0 auto; }
-    .theory-entry { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed var(--panel-alt); }
+    .theory-entry { margin-bottom: 15px; padding: 15px; border-radius:8px; background: var(--panel-alt); border-left: 3px solid var(--accent2); }
     .theory-entry:last-child { border-bottom: none; }
-    .theory-meta { font-size: 0.9em; color: var(--msg-meta); margin-bottom: 5px; }
+    .theory-meta { font-size: 0.8em; color: var(--msg-meta); margin-bottom: 8px; }
     .theory-text { line-height: 1.5; }
+    #evolution-info { text-align: center; margin-bottom: 15px; padding: 10px; background-color: var(--panel-alt); border-radius: 8px;}
+    #evolutionary-stage-display { color: var(--accent); font-weight:bold; font-size: 1.2em; }
+    #evolutionary-stage-description { font-style: italic; color: var(--fg); font-size: 0.9em; margin-top: 5px;}
+
   </style>
 </head>
 <body>
@@ -68,36 +73,43 @@
     <h2>Enter Gemini API Key to Begin</h2>
     <label for="gemini-key"><b>Gemini API Key:</b></label><br>
     <input id="gemini-key" type="password" placeholder="Your Gemini API Key"><br>
-    <button id="set-keys-btn">Set API Key & Start</button>
+    <button id="set-keys-btn">Set API Key & Start Simulation</button>
     <span id="api-key-status" style="margin-left:20px; font-weight: bold;"></span>
   </div>
 
   <div id="main-dashboard" style="display:none;">
     <div class="container"><h1>Soul Trait Evolution (Live)</h1></div>
+    <div id="evolution-info" class="container">
+      <h3>Current Evolutionary Stage: <span id="evolutionary-stage-display">Initializing...</span></h3>
+      <p id="evolutionary-stage-description"></p>
+    </div>
     <div class="tabs container">
       <button class="tab active" onclick="showTab('traits-view')">Traits</button>
       <button class="tab" onclick="showTab('timeline-view')">Timeline</button>
-      <button class="tab" onclick="showTab('conversation-view')">Conversation</button>
-      <button class="tab" onclick="showTab('theories-view')">Evolving Theories</button> <button class="tab" onclick="showTab('customization-view')">Customization</button>
+      <button class="tab" onclick="showTab('conversation-view')">Log</button>
+      <button class="tab" onclick="showTab('theories-view')">Theories</button>
+      <button class="tab" onclick="showTab('customization-view')">Settings</button>
     </div>
 
     <div id="traits-view" class="tab-content active container">
       <div id="barplot"></div>
       <h3 style="margin-top: 30px;">Current Trait Values</h3><table id="trait-table"></table>
       <h3 style="margin-top: 30px;">Discovered Traits</h3><table id="discovered-table"></table>
-      <h3 style="margin-top: 30px;">Interpretation</h3><div id="terminal">Waiting for data...</div>
+      <h3 style="margin-top: 30px;">AI's Brief Interpretation</h3><div id="terminal">Waiting for data...</div>
     </div>
     <div id="timeline-view" class="tab-content container"><div id="timeline-chart"></div></div>
     
     <div id="conversation-view" class="tab-content container">
       <div class="conversation-nav">
-        <button id="prev-msg-btn">&larr; Prev</button>
+        <button id="prev-msg-btn" title="Previous Message">&larr; Prev</button>
         <span id="msg-counter">Message 0 of 0</span>
-        <button id="next-msg-btn">Next &rarr;</button>
+        <button id="next-msg-btn" title="Next Message">Next &rarr;</button>
       </div>
-      <div id="conversation-display-area">Select a message to view.</div> </div>
+      <div id="conversation-display-area" style="min-height: 100px;">Select a message to view.</div>
+    </div>
 
-    <div id="theories-view" class="tab-content container"> <h3>AI's Evolving Theories & Summaries</h3>
+    <div id="theories-view" class="tab-content container">
+        <h3>AI's Evolving Theories</h3>
         <div id="theories-display-area">Waiting for theories...</div>
     </div>
 
@@ -108,23 +120,22 @@
         <option value="solarized">Solarized</option><option value="pastel">Pastel</option>
       </select>
       <hr style="margin: 30px 0;">
-      <label for="prompt-box"><b>Custom Reflection Prompt (Optional):</b></label><br>
-      <textarea id="prompt-box" rows="4" placeholder="Enter your custom prompt for AI reflections here..."></textarea><br>
+      <label for="prompt-box"><b>Custom Base Prompt for AI (Optional):</b></label><br>
+      <textarea id="prompt-box" rows="4" placeholder="Enter your custom base prompt for the AI's analytical statements here..."></textarea><br>
       <button id="set-prompt-btn">Set Custom Prompt</button>
       <span id="prompt-status" style="margin-left: 20px;"></span>
     </div>
   </div>
 
   <script>
-    // Global state variables
     let ws; 
     let currentTraitData = {}, currentHistoryData = [], currentTraitNames = [], currentTraitFirstSeen = {}, currentTraitColors = {};
     let fullConversationHistory = [];
-    let currentConversationIndex = -1; // -1 indicates no message selected or empty history
+    let currentConversationIndex = -1;
     let evolvingTheories = [];
+    let currentStepForUI = 0; // To keep track of step for UI elements if needed
 
-    // --- API Key Setup ---
-    document.getElementById('set-keys-btn').onclick = async function() { /* ... (same as your existing working version) ... */ 
+    document.getElementById('set-keys-btn').onclick = async function() { 
         const geminiKey = document.getElementById('gemini-key').value.trim();
         const statusSpan = document.getElementById('api-key-status');
         if (!geminiKey) {
@@ -138,40 +149,74 @@
             });
             const responseData = await response.json();
             if (response.ok && responseData.status === 'ok') {
-            statusSpan.textContent = 'Gemini API Key Accepted! Starting...'; statusSpan.style.color = 'green';
+            statusSpan.textContent = responseData.message || 'Gemini API Key Accepted! Starting...'; statusSpan.style.color = 'green';
             document.getElementById('api-key-setup').style.display = 'none';
             document.getElementById('main-dashboard').style.display = 'block';
+            showTab('traits-view'); 
             connectWebSocket();
             } else {
-            let errorMsg = 'Error: ';
+            let errorMsg = 'Error setting API key: ';
             if (responseData.errors && responseData.errors.gemini_api_key) errorMsg += responseData.errors.gemini_api_key;
             else if (responseData.message) errorMsg += responseData.message;
-            else errorMsg += `Server responded with status ${response.status}. Check server logs.`;
+            else errorMsg += `Server responded with status ${response.status}. Check server logs for details.`;
             statusSpan.textContent = errorMsg; statusSpan.style.color = 'red'; console.error("API Key validation failed:", responseData);
             }
         } catch (e) {
-            statusSpan.textContent = 'Error: Failed to send API key to server.'; statusSpan.style.color = 'red'; console.error("Fetch error for /set_api_keys:", e);
+            statusSpan.textContent = 'Error: Failed to communicate with server to set API key. Is the server running?'; statusSpan.style.color = 'red'; console.error("Fetch error for /set_api_keys:", e);
         }
     };
 
-    // --- WebSocket Handling ---
-    function connectWebSocket() { /* ... (same as your existing working version, ensure it calls ws.onmessage = ws_onmessage_handler) ... */ 
+    function connectWebSocket() { 
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
-        ws.onopen = () => { console.log('WS connected!'); document.getElementById('terminal').textContent = 'Connected. Waiting for data...';};
+        ws.onopen = () => { console.log('WS connected!'); document.getElementById('terminal').textContent = 'Connection established. Waiting for initial soul data...';};
         ws.onmessage = ws_onmessage_handler;
-        ws.onclose = (event) => { console.log('WS disconnected:', event.reason, event.code); document.getElementById('terminal').textContent = `WS disconnected. Code: ${event.code}. Reconnecting...`; setTimeout(connectWebSocket, 7000);};
-        ws.onerror = (error) => { console.error('WS error:', error); document.getElementById('terminal').textContent = 'WS error.';};
+        ws.onclose = (event) => { 
+            console.log('WS disconnected:', event.reason, event.code); 
+            const term = document.getElementById('terminal');
+            if(term) term.textContent = `WS disconnected. Code: ${event.code}. ${event.reason ? `Reason: ${event.reason}. ` : ''}Attempting to reconnect...`; 
+            if (document.getElementById('api-key-setup').style.display === 'none') {
+                 setTimeout(connectWebSocket, 7000);
+            }
+        };
+        ws.onerror = (error) => { console.error('WS error:', error); document.getElementById('terminal').textContent = 'WebSocket connection error. Check console and server logs.';};
     }
 
     function ws_onmessage_handler(event) {
       try {
-        let data = JSON.parse(event.data); console.log("Data:", data);
-        currentTraitData = data.traits || {}; currentHistoryData = data.history || [];
-        currentTraitNames = data.trait_names || []; currentTraitFirstSeen = data.trait_first_seen || {};
+        let data = JSON.parse(event.data); 
+        // Fallback for console log if data.step is undefined for some reason
+        console.log("Received data for step:", data.step !== undefined ? data.step : currentStepForUI, data);
+
+        currentTraitData = data.traits || {}; 
+        currentHistoryData = data.history || [];
+        currentTraitNames = data.trait_names || []; 
+        currentTraitFirstSeen = data.trait_first_seen || {};
         currentTraitColors = data.trait_colors || {};
-        fullConversationHistory = data.conversation_history || [];
-        evolvingTheories = data.evolving_theories || []; // Get theories
+        currentStepForUI = data.step !== undefined ? data.step : currentStepForUI; // Update current step
+
+        const newConversationHistory = data.conversation_history || [];
+        if (newConversationHistory.length > 0 && (newConversationHistory.length !== fullConversationHistory.length || 
+            JSON.stringify(newConversationHistory[newConversationHistory.length-1]) !== JSON.stringify(fullConversationHistory[fullConversationHistory.length-1]))) {
+            fullConversationHistory = newConversationHistory;
+            // Only auto-set to last message if it's a new message and we're not already deep in history
+            if (currentConversationIndex < fullConversationHistory.length - 2 || currentConversationIndex === -1) {
+                 currentConversationIndex = fullConversationHistory.length - 1; 
+            }
+        }
+        displayConversationMessage(); 
+        
+        evolvingTheories = data.evolving_theories || [];
+        updateTheoriesDisplay();
+
+        const stageDisplay = document.getElementById('evolutionary-stage-display');
+        const stageDescriptionDisplay = document.getElementById('evolutionary-stage-description');
+        if (data.current_evolutionary_stage && stageDisplay) {
+            stageDisplay.textContent = data.current_evolutionary_stage;
+        }
+        if (data.current_stage_description && stageDescriptionDisplay) {
+            stageDescriptionDisplay.textContent = data.current_stage_description;
+        }
 
         let sum = Object.values(currentTraitData).reduce((a, b) => a + b, 0) || 1;
         let dominance = {}; Object.keys(currentTraitData).forEach(k => dominance[k] = (currentTraitData[k] / sum) * 100);
@@ -179,103 +224,96 @@
         
         updateBarPlot(currentTraitData, dominance, currentTraitColors);
         updateTraitTable(currentTraitData, dominance, dominantTrait, currentTraitColors);
-        updateDiscoveredTable(currentTraitFirstSeen, currentTraitData, data.step, currentTraitColors);
+        updateDiscoveredTable(currentTraitFirstSeen, currentTraitData, currentStepForUI, currentTraitColors);
         let timelineTraitOrder = (data.all_traits_pca_order && data.all_traits_pca_order.length > 0) ? data.all_traits_pca_order : currentTraitNames;
-        updateTimeline(currentHistoryData, timelineTraitOrder, currentTraitColors); 
+        updateTimeline(currentHistoryData, timelineTraitOrder); // Removed traitColors from timeline for now
         document.getElementById('terminal').textContent = interpret(currentTraitData, dominance, dominantTrait);
-        
-        // Conversation: if new messages, update index to the latest, then display.
-        if (fullConversationHistory.length > 0 && currentConversationIndex === -1) {
-            currentConversationIndex = fullConversationHistory.length - 1; // Start at the latest message
-        } else if (fullConversationHistory.length > 0 && currentConversationIndex >= fullConversationHistory.length) {
-             currentConversationIndex = fullConversationHistory.length - 1; // Adjust if index out of bounds
-        }
-        displayConversationMessage(); // Update single message display
-        updateTheoriesDisplay(); // Update theories display
-
       } catch (e) { console.error("Error processing WS msg:", e, "Raw:", event.data); document.getElementById('terminal').textContent = "Error processing data. See console."; }
     }
 
-    // --- Tab Navigation ---
-    function showTab(tabId) { /* ... (same as your existing working version) ... */ 
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    function showTab(tabId) { 
+        document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
-        const tabButton = Array.from(document.querySelectorAll('.tab')).find(btn => btn.getAttribute('onclick').includes(`'${tabId}'`));
+        const tabButton = Array.from(document.querySelectorAll('.tabs .tab')).find(btn => btn.getAttribute('onclick').includes(`'${tabId}'`));
         if (tabButton) tabButton.classList.add('active');
         const activeTabContent = document.getElementById(tabId);
         if (activeTabContent) activeTabContent.style.display = 'block';
     }
-    showTab('traits-view'); // Default tab
-
-    // --- Theme Selection ---
-    document.getElementById('theme-select').addEventListener('change', function() { /* ... (same, ensure charts redraw if needed) ... */ 
+    
+    document.getElementById('theme-select').addEventListener('change', function() { 
         document.body.className = this.value;
-        // Simplified redraw logic - you might need more specific updates if plots don't auto-update theme colors
-        if (typeof Plotly !== 'undefined') {
-            ['barplot', 'timeline-chart'].forEach(id => {
-                const chart = document.getElementById(id);
-                if (chart && chart.layout) Plotly.redraw(chart);
-            });
+        if (typeof Plotly !== 'undefined' && document.getElementById('main-dashboard').style.display !== 'none') {
+            // Re-trigger a general UI update which will re-render plots with new theme colors
+             ws_onmessage_handler({data: JSON.stringify({ 
+                traits: currentTraitData, history: currentHistoryData, trait_names: currentTraitNames,
+                trait_first_seen: currentTraitFirstSeen, trait_colors: currentTraitColors,
+                conversation_history: fullConversationHistory, evolving_theories: evolvingTheories,
+                step: currentStepForUI, 
+                all_traits_pca_order: currentTraitData.all_traits_pca_order || currentTraitNames,
+                current_evolutionary_stage: document.getElementById('evolutionary-stage-display').textContent,
+                current_stage_description: document.getElementById('evolutionary-stage-description').textContent
+            })});
         }
     });
 
-    // --- UI Update Functions (interpret, BarPlot, TraitTable, DiscoveredTable, Timeline are mostly same, ensure they use currentTraitColors where applicable) ---
-    function interpret(traits, dominance, dominantTrait) { /* ... (same as your existing version) ... */ 
-      if (Object.keys(traits).length === 0) return "No trait data.";
-      let lines = Object.entries(traits).map(([k,v])=>`${k.padEnd(20)} ${Number(v).toFixed(2)} (${(dominance[k]||0).toFixed(1)}%)`).join('\n');
-      let summary = `\nDominant: ${dominantTrait} (${(dominance[dominantTrait]||0).toFixed(1)}%)\n`;
-      summary += (dominance[dominantTrait]||0)>60?"Defining trait.":"Balanced influences.";
-      return lines + "\n\n" + summary;
+    function interpret(traits, dominance, dominantTrait) { 
+      if (Object.keys(traits).length === 0) return "No trait data available at this moment.";
+      let lines = Object.entries(traits).map(([k,v])=>`${k.padEnd(25)} ${Number(v).toFixed(3)} (${(dominance[k]||0).toFixed(1)}%)`).join('\n');
+      let summary = `\nDominant Trait: ${dominantTrait} (${(dominance[dominantTrait]||0).toFixed(1)}%)\n`;
+      summary += (dominance[dominantTrait]||0)>60?"This trait is strongly defining the soul's current state.":"The soul's state is influenced by a balance of multiple traits.";
+      return `Step: ${currentStepForUI}\n` + lines + "\n\n" + summary;
     }
-    function updateBarPlot(traits, dominance, traitColors) { /* ... (same, but ensure barColors uses traitColors as per my last HTML example) ... */ 
-      if (Object.keys(traits).length === 0) { Plotly.purge('barplot'); return; }
+
+    function updateBarPlot(traits, dominance, traitColors) { 
+      let chartEl = document.getElementById('barplot');
+      if (Object.keys(traits).length === 0) { Plotly.purge(chartEl); return; }
       let names = Object.keys(traits); let values = names.map(k => traits[k]);
       let doms = names.map(k => dominance[k] || 0);
-      let barColors = names.map(k => traitColors[k] || (doms[k] === Math.max(...doms) ? 'var(--accent)' : 'var(--accent2)'));
-      let plotData = [{ x: names, y: values, type: 'bar', marker: {color: barColors}, text: doms.map(d => d.toFixed(1)+'%'), textposition: 'auto', hovertemplate: '%{x}: %{y:.2f} (%{text})<extra></extra>'}];
-      let layout = { title: 'Traits & Dominance', yaxis: {range:[0,1.05],automargin:true}, xaxis:{automargin:true,tickangle:-45}, plot_bgcolor:getComputedStyle(document.body).getPropertyValue('--bg').trim(), paper_bgcolor:getComputedStyle(document.body).getPropertyValue('--bg').trim(), font:{color:getComputedStyle(document.body).getPropertyValue('--fg').trim()}, margin:{t:50,b:100,l:50,r:30}};
-      Plotly.react('barplot', plotData, layout);
+      let barColors = names.map(k => traitColors[k] || (doms[k] === Math.max(...doms) ? getComputedStyle(document.body).getPropertyValue('--accent').trim() : getComputedStyle(document.body).getPropertyValue('--accent2').trim()));
+      let plotData = [{ x: names, y: values, type: 'bar', marker: {color: barColors}, text: doms.map(d => d.toFixed(1)+'%'), textposition: 'auto', hovertemplate: '<b>%{x}</b><br>Value: %{y:.3f}<br>Dominance: %{text}<extra></extra>'}];
+      let layout = { title: 'Current Soul Traits & Dominance', yaxis: {range:[0,1.05],automargin:true, title: 'Value'}, xaxis:{automargin:true,tickangle: names.length > 6 ? -45 : 0}, plot_bgcolor:getComputedStyle(document.body).getPropertyValue('--bg').trim(), paper_bgcolor:getComputedStyle(document.body).getPropertyValue('--bg').trim(), font:{color:getComputedStyle(document.body).getPropertyValue('--fg').trim()}, margin:{t:50,b:120,l:60,r:30}};
+      Plotly.react(chartEl, plotData, layout);
     }
-    function updateTraitTable(traits, dominance, dominantTrait, traitColors) { /* ... (same, but ensure trait name cell uses traitColors) ... */ 
+
+    function updateTraitTable(traits, dominance, dominantTrait, traitColors) { 
       let table = document.getElementById('trait-table'); if (!table) return;
       let header = `<thead><tr><th>Trait</th><th>Value</th><th>Dominance (%)</th></tr></thead>`;
-      let bodyRows = Object.keys(traits).map(k => {
+      let bodyRows = Object.keys(traits).sort().map(k => { // Sort trait names alphabetically
         let dom = (dominance[k] || 0).toFixed(1); let rowClass = k === dominantTrait ? 'dominant' : '';
         let traitNameStyle = traitColors[k] ? `style="color: ${traitColors[k]}; font-weight: bold;"` : '';
-        return `<tr class="${rowClass}"><td ${traitNameStyle}>${k}</td><td>${Number(traits[k]).toFixed(2)}</td><td>${dom}</td></tr>`;}).join('');
+        return `<tr class="${rowClass}"><td ${traitNameStyle}>${k}</td><td>${Number(traits[k]).toFixed(3)}</td><td>${dom}</td></tr>`;}).join('');
       table.innerHTML = header + `<tbody>${bodyRows}</tbody>`;
     }
-    function updateDiscoveredTable(traitFirstSeen, currentTraits, currentStep, traitColors) { /* ... (same, use traitColors) ... */ 
+
+    function updateDiscoveredTable(traitFirstSeenData, currentTraitsData, step, traitColors) { 
       let table = document.getElementById('discovered-table'); if (!table) return;
-      let header = `<thead><tr><th>Trait</th><th>First Seen</th><th>Age</th><th>Value</th></tr></thead>`;
-      let allSeenTraits = Object.keys(traitFirstSeen).sort((a,b)=>traitFirstSeen[a]-traitFirstSeen[b]);
+      let header = `<thead><tr><th>Trait</th><th>First Seen (Step)</th><th>Age (Steps)</th><th>Current Value</th></tr></thead>`;
+      let allSeenTraits = Object.keys(traitFirstSeenData).sort((a,b)=>traitFirstSeenData[a]-traitFirstSeenData[b]);
       let bodyRows = allSeenTraits.map(k => {
-        let val = currentTraits[k] !== undefined ? Number(currentTraits[k]).toFixed(2) : '—';
-        let age = currentTraits[k] !== undefined ? currentStep - traitFirstSeen[k] : '—';
+        let val = currentTraitsData[k] !== undefined ? Number(currentTraitsData[k]).toFixed(3) : '— (Vanished)';
+        let age = currentTraitsData[k] !== undefined ? step - traitFirstSeenData[k] : '—';
         let traitNameStyle = traitColors[k] ? `style="color: ${traitColors[k]}; font-weight: bold;"` : '';
-        return `<tr><td ${traitNameStyle}>${k}</td><td>${traitFirstSeen[k]}</td><td>${age}</td><td>${val}</td></tr>`;}).join('');
+        return `<tr><td ${traitNameStyle}>${k}</td><td>${traitFirstSeenData[k]}</td><td>${age}</td><td>${val}</td></tr>`;}).join('');
       table.innerHTML = header + `<tbody>${bodyRows}</tbody>`;
     }
-    function updateTimeline(historyData, timelineTraitOrder, traitColors) { /* ... (same as my last HTML example, traitColors passed for future use like x-axis label coloring) ... */ 
+
+    function updateTimeline(historyData, timelineTraitOrder) { 
       let chartElement = document.getElementById('timeline-chart');
-      if (historyData.length === 0 || timelineTraitOrder.length === 0) { Plotly.purge(chartElement); return; }
+      if (historyData.length < 2 || timelineTraitOrder.length === 0) { Plotly.purge(chartElement); if(chartElement) chartElement.innerHTML = '<p style="text-align:center;padding-top:50px;color:var(--msg-meta);">Not enough history for timeline yet.</p>'; return; }
       let z_data = historyData.map(snap => timelineTraitOrder.map(tn => snap[tn]!==undefined?snap[tn]:null));
-      let plotData = [{ z: z_data, x: timelineTraitOrder, y: Array.from({length:historyData.length},(_,i)=>i), type:'heatmap', colorscale:'Viridis', reversescale:true, colorbar:{title:'Value',titleside:'right',tickvals:[0,0.25,0.5,0.75,1],ticktext:['0.0','0.25','0.5','0.75','1.0']}, hoverongaps:false, xgap:1,ygap:1}];
-      let layout = { title: 'Trait Timeline', xaxis:{title:'Trait',automargin:true,tickangle:-45}, yaxis:{title:'Step',autorange:'reversed',automargin:true}, plot_bgcolor:getComputedStyle(document.body).getPropertyValue('--bg').trim(), paper_bgcolor:getComputedStyle(document.body).getPropertyValue('--bg').trim(), font:{color:getComputedStyle(document.body).getPropertyValue('--fg').trim()}, margin:{t:50,b:100,l:60,r:30}};
+      let plotData = [{ z: z_data, x: timelineTraitOrder, y: Array.from({length:historyData.length},(_,i)=> currentStepForUI - historyData.length + 1 + i), type:'heatmap', colorscale:'Viridis', reversescale:true, colorbar:{title:'Value',titleside:'right',tickvals:[0,0.25,0.5,0.75,1],ticktext:['0.0','0.25','0.5','0.75','1.0']}, hoverongaps:false, xgap:1,ygap:1}];
+      let layout = { title: 'Trait Value Timeline', xaxis:{title:'Trait',automargin:true,tickangle: timelineTraitOrder.length > 6 ? -45 : 0}, yaxis:{title:'Simulation Step',autorange:'reversed',automargin:true}, plot_bgcolor:getComputedStyle(document.body).getPropertyValue('--bg').trim(), paper_bgcolor:getComputedStyle(document.body).getPropertyValue('--bg').trim(), font:{color:getComputedStyle(document.body).getPropertyValue('--fg').trim()}, margin:{t:50,b:120,l:70,r:30}};
       Plotly.react(chartElement, plotData, layout);
     }
 
-    // --- Conversation Navigation and Display ---
     document.getElementById('prev-msg-btn').onclick = function() {
       if (fullConversationHistory.length > 0 && currentConversationIndex > 0) {
-        currentConversationIndex--;
-        displayConversationMessage();
+        currentConversationIndex--; displayConversationMessage();
       }
     };
     document.getElementById('next-msg-btn').onclick = function() {
       if (fullConversationHistory.length > 0 && currentConversationIndex < fullConversationHistory.length - 1) {
-        currentConversationIndex++;
-        displayConversationMessage();
+        currentConversationIndex++; displayConversationMessage();
       }
     };
 
@@ -283,58 +321,60 @@
       const displayArea = document.getElementById('conversation-display-area');
       const counter = document.getElementById('msg-counter');
       if (!displayArea || !counter) return;
-
-      if (fullConversationHistory.length === 0 || currentConversationIndex < 0 || currentConversationIndex >= fullConversationHistory.length) {
-        displayArea.innerHTML = '<p style="text-align:center; color: var(--msg-meta);">No conversation yet, or no message selected.</p>';
-        counter.textContent = `Message 0 of ${fullConversationHistory.length}`;
+      if (fullConversationHistory.length === 0) {
+        displayArea.innerHTML = '<p style="text-align:center; color: var(--msg-meta);">No conversation messages yet.</p>';
+        counter.textContent = `Message 0 of 0`;
+        document.getElementById('prev-msg-btn').disabled = true;
+        document.getElementById('next-msg-btn').disabled = true;
         return;
+      }
+      if (currentConversationIndex < 0 || currentConversationIndex >= fullConversationHistory.length) {
+          currentConversationIndex = fullConversationHistory.length -1; // Default to last if out of bounds
       }
       const msg = fullConversationHistory[currentConversationIndex];
       let speakerClass = (msg.speaker || 'unknown').toLowerCase().replace(/[\s\(\)]/g, '-');
-      if (speakerClass.startsWith('ai-')) speakerClass = speakerClass.replace('ai-','ai');
-      
+      if(msg.type === "evolution") speakerClass = "system-evolution";
+      else if (speakerClass.startsWith('ai-soul-') && speakerClass !== 'ai-soul-self-reply') speakerClass = 'ai-soul';
+
       displayArea.innerHTML = `
         <div class="msg ${speakerClass}">
-          <div class="meta">${msg.speaker} &middot; ${new Date(msg.timestamp).toLocaleString()}</div>
-          <div class="text">${(msg.text || "").replace(/\n/g, '<br>')}</div>
+          <div class="meta">${msg.speaker} (Step: ${msg.step || currentStepForUI}) &middot; ${new Date(msg.timestamp).toLocaleString()}</div>
+          <div class="text">${(msg.text || "Error: Empty message content").replace(/\n/g, '<br>')}</div>
         </div>`;
       counter.textContent = `Message ${currentConversationIndex + 1} of ${fullConversationHistory.length}`;
-
-      // Enable/disable buttons
       document.getElementById('prev-msg-btn').disabled = (currentConversationIndex <= 0);
       document.getElementById('next-msg-btn').disabled = (currentConversationIndex >= fullConversationHistory.length - 1);
+      displayArea.scrollTop = 0; // Scroll to top of the message
     }
     
-    // --- Evolving Theories Display ---
     function updateTheoriesDisplay() {
         const displayArea = document.getElementById('theories-display-area');
         if (!displayArea) return;
-
         if (evolvingTheories.length === 0) {
-            displayArea.innerHTML = '<p style="text-align:center; color: var(--msg-meta);">No theories generated yet.</p>';
+            displayArea.innerHTML = '<p style="text-align:center; color: var(--msg-meta);">The AI has not yet formed any theories.</p>';
             return;
         }
-        // Display theories, perhaps newest first
         displayArea.innerHTML = evolvingTheories.slice().reverse().map((theory, index) => `
             <div class="theory-entry">
-                <div class="theory-meta">Theory #${evolvingTheories.length - index} (Step: ${theory.step}) &middot; ${new Date(theory.timestamp).toLocaleString()}</div>
-                <div class="theory-text">${(theory.text || "").replace(/\n/g, '<br>')}</div>
+                <div class="theory-meta">Theory Version #${evolvingTheories.length - index} (Generated at Step: ${theory.step}, Stage: ${theory.stage || 'N/A'}) &middot; ${new Date(theory.timestamp).toLocaleString()}</div>
+                <div class="theory-text">${(theory.text || "Error: Empty theory content").replace(/\n/g, '<br>')}</div>
             </div>
         `).join('');
+        displayArea.scrollTop = 0; // Show newest theory first
     }
 
-
-    // --- Custom Prompt Submission ---
-    document.getElementById('set-prompt-btn').onclick = async function() { /* ... (same as your existing version) ... */ 
+    document.getElementById('set-prompt-btn').onclick = async function() { 
       const customPrompt = document.getElementById('prompt-box').value;
       const statusSpan = document.getElementById('prompt-status'); statusSpan.textContent = 'Setting...'; statusSpan.style.color = 'var(--accent)';
       try {
         const response = await fetch('/set_prompt', { method: 'POST', headers: {'Content-Type':'application/json'}, body:JSON.stringify({prompt:customPrompt})});
         const responseData = await response.json();
-        if (response.ok && responseData.status === 'ok') { statusSpan.textContent = responseData.prompt_set_to==="default"?'Prompt cleared.':'Custom prompt set!'; statusSpan.style.color = 'green';}
-        else { statusSpan.textContent = `Error: ${responseData.message||'Failed.'}`; statusSpan.style.color = 'red';}
-      } catch (e) { statusSpan.textContent = 'Error: Failed to send.'; statusSpan.style.color = 'red'; console.error("Fetch /set_prompt:", e);}
+        if (response.ok && responseData.status === 'ok') { statusSpan.textContent = responseData.prompt_set_to==="Custom"?'Custom base prompt successfully set!':'Custom prompt cleared. Using default system prompt.'; statusSpan.style.color = 'green';}
+        else { statusSpan.textContent = `Error: ${responseData.message||'Failed to set prompt.'}`; statusSpan.style.color = 'red';}
+      } catch (e) { statusSpan.textContent = 'Error: Failed to send prompt to server.'; statusSpan.style.color = 'red'; console.error("Fetch error for /set_prompt:", e);}
     };
+    // Initialize with default tab
+    showTab('traits-view');
   </script>
 </body>
 </html>
