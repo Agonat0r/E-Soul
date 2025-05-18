@@ -434,58 +434,139 @@
     };
 
     const MODULES = [
-      {name:'Camera',icon:'📷',desc:'Visual sensor for perception.'},
-      {name:'Microphone',icon:'🎤',desc:'Audio sensor for sound input.'},
-      {name:'Speaker',icon:'🔊',desc:'Audio output for communication.'},
-      {name:'IR Sensor',icon:'🌡️',desc:'Infrared sensor for proximity or heat.'},
-      {name:'Ultrasonic Sensor',icon:'📡',desc:'Distance measurement.'},
-      {name:'Servo Motor',icon:'🔩',desc:'Precise rotational actuator.'},
-      {name:'DC Motor',icon:'⚙️',desc:'General purpose motor.'},
-      {name:'Stepper Motor',icon:'🔃',desc:'Precise step-based motor.'},
-      {name:'LIDAR',icon:'🛰️',desc:'Laser-based distance sensor.'},
-      {name:'IMU',icon:'🧭',desc:'Inertial measurement unit.'},
-      {name:'GPS',icon:'📍',desc:'Global positioning system.'},
-      {name:'Temperature Sensor',icon:'🌡️',desc:'Measures temperature.'},
-      {name:'Humidity Sensor',icon:'💧',desc:'Measures humidity.'},
-      {name:'Pressure Sensor',icon:'⏲️',desc:'Measures pressure.'},
-      {name:'Light Sensor',icon:'💡',desc:'Detects light intensity.'},
-      {name:'Touch Sensor',icon:'🤚',desc:'Detects touch/contact.'},
-      {name:'Proximity Sensor',icon:'📶',desc:'Detects nearby objects.'},
-      {name:'Accelerometer',icon:'🏎️',desc:'Measures acceleration.'},
-      {name:'Gyroscope',icon:'🌀',desc:'Measures rotation.'},
-      {name:'Magnetometer',icon:'🧲',desc:'Measures magnetic field.'},
-      {name:'Gas Sensor',icon:'🫧',desc:'Detects gases.'},
-      {name:'Flame Sensor',icon:'🔥',desc:'Detects flame.'},
-      {name:'Vibration Sensor',icon:'💥',desc:'Detects vibration.'},
-      {name:'Force Sensor',icon:'🦾',desc:'Measures force/pressure.'},
-      {name:'Color Sensor',icon:'🎨',desc:'Detects color.'},
-      {name:'RFID',icon:'📛',desc:'Radio-frequency ID.'},
-      {name:'Bluetooth',icon:'📶',desc:'Wireless comm.'},
-      {name:'WiFi',icon:'📡',desc:'Wireless comm.'},
-      {name:'Zigbee',icon:'📶',desc:'Wireless comm.'},
-      {name:'LoRa',icon:'📶',desc:'Long-range wireless.'},
-      {name:'Relay',icon:'🔌',desc:'Switches circuits.'},
-      {name:'Buzzer',icon:'🔔',desc:'Makes sound.'},
-      {name:'LED',icon:'💡',desc:'Light emitting diode.'},
-      {name:'LCD Display',icon:'🖥️',desc:'Text/graphics display.'},
-      {name:'OLED Display',icon:'🖥️',desc:'High-contrast display.'},
-      {name:'E-Paper Display',icon:'📄',desc:'Low-power display.'},
-      {name:'Keypad',icon:'⌨️',desc:'Input buttons.'},
-      {name:'Joystick',icon:'🕹️',desc:'Directional input.'},
-      {name:'Potentiometer',icon:'🎚️',desc:'Variable resistor.'},
-      {name:'Rotary Encoder',icon:'🔄',desc:'Measures rotation.'},
-      {name:'SD Card',icon:'💾',desc:'Storage.'},
-      {name:'RTC',icon:'⏰',desc:'Real time clock.'},
-      {name:'Power Module',icon:'🔋',desc:'Power supply.'},
-      {name:'Battery',icon:'🔋',desc:'Portable power.'},
-      {name:'Solar Panel',icon:'🔆',desc:'Solar power.'},
-      {name:'Fan',icon:'🌀',desc:'Cooling.'},
-      {name:'Pump',icon:'💧',desc:'Moves fluids.'},
-      {name:'Valve',icon:'🚪',desc:'Controls flow.'},
-      {name:'Laser',icon:'🔦',desc:'Laser emitter.'},
-      {name:'Thermocouple',icon:'🌡️',desc:'Temperature probe.'},
-      {name:'Load Cell',icon:'⚖️',desc:'Measures weight.'}
+      {
+        name: 'HC-SR04 Ultrasonic Sensor',
+        manufacturer: 'Generic',
+        partNumber: 'HC-SR04',
+        datasheet: 'https://cdn.sparkfun.com/datasheets/Sensors/Proximity/HCSR04.pdf',
+        pinout: [
+          { pin: 'VCC', function: 'Power (5V)' },
+          { pin: 'Trig', function: 'Trigger Input' },
+          { pin: 'Echo', function: 'Echo Output' },
+          { pin: 'GND', function: 'Ground' }
+        ],
+        desc: 'Measures distance using ultrasonic pulses. Common in robotics for obstacle detection.'
+      },
+      {
+        name: 'TCS34725 Color Sensor',
+        manufacturer: 'AMS/Adafruit',
+        partNumber: 'TCS34725',
+        datasheet: 'https://cdn-shop.adafruit.com/datasheets/TCS34725.pdf',
+        pinout: [
+          { pin: 'VIN', function: 'Power (3.3-5V)' },
+          { pin: 'GND', function: 'Ground' },
+          { pin: 'SCL', function: 'I2C Clock' },
+          { pin: 'SDA', function: 'I2C Data' },
+          { pin: 'INT', function: 'Interrupt Output' }
+        ],
+        desc: 'Detects color and light intensity using I2C. Used for color recognition and ambient light sensing.'
+      },
+      {
+        name: 'DFRobot Gravity: Analog Sound Sensor',
+        manufacturer: 'DFRobot',
+        partNumber: 'SEN0232',
+        datasheet: 'https://wiki.dfrobot.com/Gravity_Analog_Sound_Sensor__SKU_SEN0232_',
+        pinout: [
+          { pin: 'VCC', function: 'Power (3.3-5V)' },
+          { pin: 'GND', function: 'Ground' },
+          { pin: 'AOUT', function: 'Analog Output' }
+        ],
+        desc: 'Detects sound intensity. Outputs analog voltage proportional to sound level.'
+      },
+      {
+        name: 'SparkFun Qwiic Joystick',
+        manufacturer: 'SparkFun',
+        partNumber: 'COM-15168',
+        datasheet: 'https://cdn.sparkfun.com/assets/2/2/2/2/2/Qwiic_Joystick_v10.pdf',
+        pinout: [
+          { pin: 'GND', function: 'Ground' },
+          { pin: '3.3V', function: 'Power (3.3V)' },
+          { pin: 'SDA', function: 'I2C Data' },
+          { pin: 'SCL', function: 'I2C Clock' }
+        ],
+        desc: '2-axis joystick with I2C interface. Used for directional input in robotics and games.'
+      },
+      {
+        name: 'TMP36 Temperature Sensor',
+        manufacturer: 'Analog Devices',
+        partNumber: 'TMP36',
+        datasheet: 'https://www.analog.com/media/en/technical-documentation/data-sheets/TMP35_36_37.pdf',
+        pinout: [
+          { pin: '1', function: 'VCC (2.7-5.5V)' },
+          { pin: '2', function: 'VOUT (Analog Output)' },
+          { pin: '3', function: 'GND' }
+        ],
+        desc: 'Analog temperature sensor. Outputs voltage proportional to temperature. Simple and widely used.'
+      },
+      {
+        name: 'L298N Dual H-Bridge Motor Driver',
+        manufacturer: 'STMicroelectronics',
+        partNumber: 'L298N',
+        datasheet: 'https://www.st.com/resource/en/datasheet/l298.pdf',
+        pinout: [
+          { pin: 'IN1', function: 'Input 1' },
+          { pin: 'IN2', function: 'Input 2' },
+          { pin: 'IN3', function: 'Input 3' },
+          { pin: 'IN4', function: 'Input 4' },
+          { pin: 'ENA', function: 'Enable A' },
+          { pin: 'ENB', function: 'Enable B' },
+          { pin: 'OUT1', function: 'Motor A Output 1' },
+          { pin: 'OUT2', function: 'Motor A Output 2' },
+          { pin: 'OUT3', function: 'Motor B Output 1' },
+          { pin: 'OUT4', function: 'Motor B Output 2' },
+          { pin: 'VCC', function: 'Motor Power (up to 46V)' },
+          { pin: 'GND', function: 'Ground' },
+          { pin: '5V', function: 'Logic Power' }
+        ],
+        desc: 'Drives two DC motors or one stepper motor. Used for robot movement and actuation.'
+      },
+      {
+        name: 'ESP32-WROOM-32',
+        manufacturer: 'Espressif',
+        partNumber: 'ESP32-WROOM-32',
+        datasheet: 'https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32_datasheet_en.pdf',
+        pinout: [
+          { pin: '3V3', function: 'Power (3.3V)' },
+          { pin: 'GND', function: 'Ground' },
+          { pin: 'EN', function: 'Enable' },
+          { pin: 'IO0-IO39', function: 'GPIOs' },
+          { pin: 'TX0', function: 'UART TX' },
+          { pin: 'RX0', function: 'UART RX' },
+          { pin: 'SDA', function: 'I2C Data' },
+          { pin: 'SCL', function: 'I2C Clock' },
+          { pin: 'MOSI', function: 'SPI MOSI' },
+          { pin: 'MISO', function: 'SPI MISO' },
+          { pin: 'SCK', function: 'SPI Clock' }
+        ],
+        desc: 'Powerful WiFi/Bluetooth microcontroller. Used as a main controller or communication module in IoT and robotics.'
+      }
+      // ...add more as needed
     ];
+
+    // UI: Show module details on click in the module library
+    if (!document.getElementById('module-detail-popup')) {
+      const popup = document.createElement('div');
+      popup.id = 'module-detail-popup';
+      popup.style = 'position:fixed;top:20%;left:50%;transform:translate(-50%,0);background:var(--panel);border:2px solid var(--accent2);border-radius:10px;padding:24px;z-index:1000;box-shadow:0 2px 16px #0003;display:none;min-width:320px;max-width:90vw;';
+      document.body.appendChild(popup);
+    }
+    function showModuleDetail(mod) {
+      const popup = document.getElementById('module-detail-popup');
+      popup.innerHTML = `
+        <h3>${mod.name}</h3>
+        <b>Manufacturer:</b> ${mod.manufacturer || 'N/A'}<br>
+        <b>Part Number:</b> ${mod.partNumber || 'N/A'}<br>
+        <b>Datasheet:</b> <a href='${mod.datasheet}' target='_blank'>${mod.datasheet}</a><br>
+        <b>Description:</b> <span style='color:var(--msg-meta);'>${mod.desc}</span><br>
+        <b>Pinout:</b>
+        <table style='margin-top:8px;margin-bottom:8px;width:100%;border-collapse:collapse;'>
+          <tr><th style='text-align:left;'>Pin</th><th style='text-align:left;'>Function</th></tr>
+          ${mod.pinout.map(p => `<tr><td>${p.pin}</td><td>${p.function}</td></tr>`).join('')}
+        </table>
+        <button onclick="document.getElementById('module-detail-popup').style.display='none'" style='margin-top:10px;padding:7px 18px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-weight:bold;'>Close</button>
+      `;
+      popup.style.display = 'block';
+    }
     function renderModuleLibrary(filter='') {
       const lib = document.getElementById('module-library');
       lib.innerHTML = '';
@@ -493,9 +574,10 @@
         const d = document.createElement('div');
         d.className = 'module-item';
         d.style = 'padding:8px 0;display:flex;align-items:center;gap:10px;cursor:grab;border-bottom:1px solid var(--panel-alt);';
-        d.innerHTML = `<span style='font-size:1.5em;'>${m.icon}</span><span><b>${m.name}</b><br><span style='font-size:0.9em;color:var(--msg-meta);'>${m.desc}</span></span>`;
+        d.innerHTML = `<span style='font-size:1.5em;'>🔌</span><span><b>${m.name}</b><br><span style='font-size:0.9em;color:var(--msg-meta);'>${m.desc}</span></span>`;
         d.draggable = true;
         d.ondragstart = e => { e.dataTransfer.setData('text/plain', m.name); };
+        d.onclick = () => showModuleDetail(m);
         lib.appendChild(d);
       });
     }
