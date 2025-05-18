@@ -60,6 +60,8 @@ def run_simulation():
         })
         socketio.sleep(2)  # Update every 2 seconds
 
+# Start the simulation background task for both local and production
+done = socketio.start_background_task(run_simulation)
+
 if __name__ == '__main__':
-    socketio.start_background_task(run_simulation)
     socketio.run(app, debug=True) 
