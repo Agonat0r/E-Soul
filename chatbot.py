@@ -52,13 +52,26 @@ DEFAULT_COLORS_PALETTE = [
 ]
 DEFAULT_TRAIT_COLOR = "#B0B0B0" 
 
-# === Dynamic Soul Trait Logic ===
-initial_traits = {"energy-level": 0.5, "reactivity-to-stimuli": 0.6, "structural-integrity": 0.4}
-traits = initial_traits.copy() 
-history = []  
-conversation_history = [] 
-evolving_theories = [] 
-trait_first_seen = {k: 0 for k in initial_traits} 
+# --- Fundamental Soul Traits ---
+FUNDAMENTAL_TRAITS = [
+    "self_awareness", "agency", "empathy", "intentionality", "memory",
+    "perception", "reasoning", "emotion", "sociality", "adaptability"
+]
+
+# --- Theory Vectors (normalized for cosine similarity) ---
+THEORIES = {
+    "IIT":      [0.9, 0.7, 0.5, 0.8, 0.6, 0.9, 0.7, 0.5, 0.4, 0.6],  # Integrated Information Theory
+    "GWT":      [0.8, 0.8, 0.4, 0.7, 0.7, 0.8, 0.9, 0.4, 0.5, 0.7],  # Global Workspace Theory
+    "HOT":      [0.9, 0.6, 0.3, 0.8, 0.5, 0.7, 0.8, 0.3, 0.2, 0.5],  # Higher-Order Thought
+    "BioNat":   [0.7, 0.7, 0.6, 0.6, 0.8, 0.7, 0.6, 0.7, 0.6, 0.7],  # Biological Naturalism
+    "Panpsych": [0.6, 0.5, 0.7, 0.5, 0.4, 0.6, 0.5, 0.8, 0.7, 0.8],  # Panpsychism
+}
+
+# --- Soul State ---
+traits = {k: 0.5 for k in FUNDAMENTAL_TRAITS}
+history = []
+conversation_history = []
+trait_first_seen = {k: 0 for k in FUNDAMENTAL_TRAITS}
 
 clients = set() 
 user_prompt_override = None 
@@ -250,139 +263,54 @@ async def set_api_keys(request: Request):
     return JSONResponse({"status":"ok","message":"Gemini API key accepted."})
 
 async def soul_simulation():
-    global traits, history, conversation_history, trait_first_seen, evolving_theories, current_evolutionary_stage_index
-    step = 0; initial_trait_set = set(initial_traits.keys()); print("Soul simulation loop started.")
-    theory_interval, trait_evo_interval, stage_check_interval = 5, 7, 15 
-    stats_window, corr_min_steps, corr_top_n = 15, 10, 3 
-
+    global traits, history, conversation_history, trait_first_seen
+    step = 0
     while True:
-        current_stage_info = EVOLUTIONARY_STAGES[current_evolutionary_stage_index]
-        current_stage_name = current_stage_info["name"]
-        print(f"\n--- Step {step} | Stage: {current_stage_name} ({current_evolutionary_stage_index + 1}/{len(EVOLUTIONARY_STAGES)}) ---")
-
-        for k in traits: traits[k] = round(min(1.0,max(0.0,traits[k]+random.uniform(-0.05,0.05))),3)
-        history.append(traits.copy());
-        if len(history)>200: history=history[-200:]
-        
-        current_traits_snap = traits.copy(); ctna = list(current_traits_snap.keys())
-        aptl_pca,pcp,cl,X_pca = [],[],[],np.array([]) # aptl_pca = all_past_traits_list for PCA
-        # Initialize ftc with default unique colors for all current traits first
-        ftc = {name: DEFAULT_COLORS_PALETTE[i % len(DEFAULT_COLORS_PALETTE)] for i, name in enumerate(ctna)}
-        mhfa_pca = 3 # Min history for any analysis for PCA/Colors
-
-        if len(history)>=mhfa_pca:
-            ats_pca_s={k for s in history for k in s}; aptl_pca=sorted(list(ats_pca_s))
-            if aptl_pca: # Check if aptl_pca is not empty
-                Xl_pca=[[s.get(kt,0.0)for kt in aptl_pca]for s in history]; X_pca=np.array(Xl_pca)
-                if X_pca.shape[0]>=mhfa_pca and X_pca.shape[1]>0: # Check X_pca has valid dimensions
-                    # --- PCA ---
-                    npc=min(2,X_pca.shape[0],X_pca.shape[1])
-                    if npc>=1: 
-                        try:
-                            pca_instance=PCA(n_components=npc)
-                            pcp=pca_instance.fit_transform(X_pca).tolist()
-                        except Exception as e_pca_detail:
-                            print(f"S{step} PCA calculation error: {e_pca_detail}")
-                            # pcp remains []
-                    
-                    # --- KMeans ---
-                    nkc=min(4,X_pca.shape[0])
-                    if nkc>=1: 
-                        try:
-                            # Try/except for KMeans n_init, common scikit-learn version variance
-                            try: kmeans_instance = KMeans(n_clusters=nkc, n_init='auto', random_state=0)
-                            except TypeError: kmeans_instance = KMeans(n_clusters=nkc, n_init=10, random_state=0)
-                            cl=kmeans_instance.fit_predict(X_pca).tolist()
-                        except Exception as e_kmeans_detail:
-                            print(f"S{step} KMeans calculation error: {e_kmeans_detail}")
-                            # cl remains []
-                    
-                    # --- Trait Similarity Colors ---
-                    # This uses X_pca and aptl_pca (all traits in full history)
-                    if X_pca.ndim==2 and X_pca.shape[0]>=1 and X_pca.shape[1]==len(aptl_pca):
-                        # print(f"S{step} Calculating similarity colors for {len(aptl_pca)} traits in PCA history.")
-                        similarity_based_colors = calculate_trait_similarities_and_colors(aptl_pca, X_pca, min_history_steps_for_similarity=mhfa_pca)
-                        ftc.update(similarity_based_colors) # Override initial unique colors with group colors
-        
-        # Ensure all CURRENT traits have a color, even if new and not in aptl_pca
-        # This re-applies defaults if a current trait somehow wasn't in ftc after update
-        used_colors_final = set(ftc.values())
-        available_palette_final = [c for c in DEFAULT_COLORS_PALETTE if c not in used_colors_final] or DEFAULT_COLORS_PALETTE
-        color_idx_final = 0
-        for name_final in ctna: 
-            if name_final not in ftc: 
-                ftc[name_final] = available_palette_final[color_idx_final % len(available_palette_final)]
-                color_idx_final += 1
-        # Final safety net to assign default if any current trait is still uncolored
-        ftc = {name: ftc.get(name, DEFAULT_TRAIT_COLOR) for name in ctna}
-
-        
-        trait_stats={}
-        corr_sum_list=["Awaiting sufficient historical data for analysis."]
-        hist_for_analysis=history[max(0,len(history)-stats_window):]
-        min_steps_for_stats=3 # Local min_steps for this specific analysis section
-        if len(hist_for_analysis)>=min_steps_for_stats:
-            traits_in_win_set={k for s in hist_for_analysis for k in s}; traits_in_win_list=sorted(list(traits_in_win_set))
-            if traits_in_win_list:
-                X_an_list=[[s.get(kt,0.0)for kt in traits_in_win_list]for s in hist_for_analysis]; X_an_matrix=np.array(X_an_list)
-                if X_an_matrix.ndim==2 and X_an_matrix.shape[0]>0 and X_an_matrix.shape[1]>0:
-                    trait_stats=get_trait_statistics(X_an_matrix,traits_in_win_list,current_traits_snap,len(hist_for_analysis))
-                    corr_sum_list=get_trait_correlations(X_an_matrix,traits_in_win_list,max(3,corr_min_steps),corr_top_n)
-
-        analytical_statement = generate_analytical_statement(trait_stats,corr_sum_list,current_stage_name,step)
-        conversation_history.append({"speaker":f"AI Soul ({current_stage_name})","text":analytical_statement,"timestamp":datetime.now(timezone.utc).isoformat(),"type":"analysis", "step": step})
-        # print(f"S{step} Analytical Statement: '{analytical_statement[:70]}...'") 
-
-        if step>0 and step%theory_interval==0:
-            print(f"S{step} Updating theory (Stage: {current_stage_name})...");
-            new_theory=generate_updated_theory(trait_stats,corr_sum_list,analytical_statement,evolving_theories[-1:],current_stage_name,step)
-            if new_theory and not new_theory.startswith("Error:"):
-                evolving_theories.append({"text":new_theory,"timestamp":datetime.now(timezone.utc).isoformat(),"step":step,"stage":current_stage_name})
-                print(f"S{step} Theory: '{new_theory[:70]}...'");
-                if len(evolving_theories)>10:evolving_theories=evolving_theories[-10:]
-        
-        if step>0 and step%trait_evo_interval==0:
-            print(f"S{step} Suggesting trait evolution (Stage: {current_stage_name})...");
-            theory_ctx=evolving_theories[-1]['text'] if evolving_theories else "No specific theory yet."
-            stage_ctx_concepts=STAGE_RELEVANT_TRAIT_CONCEPTS.get(current_stage_name,[])
-            new_sugg,rem_sugg=suggest_trait_evolution_analytically(trait_stats,theory_ctx,current_traits_snap,current_stage_name,stage_ctx_concepts,step)
-            if new_sugg and new_sugg not in traits:traits[new_sugg]=round(random.uniform(0.2,0.6),3);trait_first_seen[new_sugg]=step;print(f"S{step} AI NEW trait '{new_sugg}'.")
-            if rem_sugg and rem_sugg in traits and rem_sugg not in initial_trait_set:del traits[rem_sugg];trait_first_seen.pop(rem_sugg,None);print(f"S{step} AI REMOVAL of trait '{rem_sugg}'.")
-
-        if step>0 and step%stage_check_interval==0 and current_evolutionary_stage_index<len(EVOLUTIONARY_STAGES)-1:
-            adv=False; csi_before_adv = current_evolutionary_stage_index 
-            # --- More sophisticated advancement criteria needed here ---
-            if EVOLUTIONARY_STAGES[csi_before_adv]["name"] == "Primordial Essence" and step > (10 + csi_before_adv*5) : adv = True 
-            elif EVOLUTIONARY_STAGES[csi_before_adv]["name"] == "Microorganism" and traits.get('motility',0) > 0.6 and step > (25 + csi_before_adv*5) : adv = True
-            elif EVOLUTIONARY_STAGES[csi_before_adv]["name"] == "Colonial Organism" and traits.get('group-synchrony',0) > 0.5 and len(traits) > (len(initial_traits)+1) and step > (40 + csi_before_adv*5): adv = True
-            elif EVOLUTIONARY_STAGES[csi_before_adv]["name"] == "Instinctual Creature" and (traits.get('basic-memory',0) > 0.5 or traits.get('social-bonding',0) > 0.3) and step > (60 + csi_before_adv*10): adv = True
-            elif EVOLUTIONARY_STAGES[csi_before_adv]["name"] == "Developing Mind" and traits.get('curiosity-advanced',0) > 0.6 and traits.get('pattern-recognition',0) > 0.5 and len(evolving_theories) >= 1 and step > (80 + csi_before_adv*10): adv = True
-            elif EVOLUTIONARY_STAGES[csi_before_adv]["name"] == "Proto-Sapient" and traits.get('abstract-logic',0) > 0.4 and traits.get('planning-basic',0) > 0.4 and len(evolving_theories) >= 2 and step > (100 + csi_before_adv*10): adv = True
-            
-            if adv:
-                old_stage_name = EVOLUTIONARY_STAGES[csi_before_adv]["name"]
-                current_evolutionary_stage_index+=1
-                new_stage_name=EVOLUTIONARY_STAGES[current_evolutionary_stage_index]["name"]
-                evo_msg=f"EVOLUTIONARY ADVANCEMENT: Stage {csi_before_adv+1} '{old_stage_name}' --> Stage {current_evolutionary_stage_index+1} '{new_stage_name}' at step {step}."
-                print(evo_msg);conversation_history.append({"speaker":"SYSTEM (Evolution)","text":evo_msg,"timestamp":datetime.now(timezone.utc).isoformat(),"type":"evolution", "step": step})
-                new_stage_concepts = STAGE_RELEVANT_TRAIT_CONCEPTS.get(new_stage_name, [])
-                added_count = 0
-                for concept in random.sample(new_stage_concepts, k=min(len(new_stage_concepts), 2)): 
-                    if concept not in traits and added_count < 2:
-                        traits[concept] = round(random.uniform(0.3,0.7),3); trait_first_seen[concept]=step
-                        print(f"S{step}: Trait '{concept}' emerged with stage '{new_stage_name}'."); added_count+=1
-        
-        if len(conversation_history)>30:conversation_history=conversation_history[-30:]
-        data_to_send={"traits":current_traits_snap,"trait_names":ctna,"history":history,"step":step,
-                      "pca_points":pcp,"clusters":cl,"all_traits_pca_order":aptl_pca,
-                      "conversation_history":conversation_history, "trait_first_seen":trait_first_seen,
-                      "trait_colors":ftc, "evolving_theories":evolving_theories,
-                      "current_evolutionary_stage":EVOLUTIONARY_STAGES[current_evolutionary_stage_index]["name"],
-                      "current_stage_description":EVOLUTIONARY_STAGES[current_evolutionary_stage_index]["description"]}
+        # Evolve traits (random walk, bounded [0,1])
+        for k in traits:
+            traits[k] = min(1.0, max(0.0, traits[k] + random.uniform(-0.03, 0.03)))
+        # Save snapshot
+        history.append(traits.copy())
+        if len(history) > 200:
+            history = history[-200:]
+        # Compare to theories
+        trait_vec = np.array([traits[k] for k in FUNDAMENTAL_TRAITS]).reshape(1, -1)
+        similarities = {theory: float(cosine_similarity(trait_vec, np.array([vec]))[0,0]) for theory, vec in THEORIES.items()}
+        # Analytical reflection
+        dominant_trait = max(traits, key=lambda k: traits[k])
+        closest_theory = max(similarities, key=similarities.get)
+        reflection = (
+            f"Step {step}:\n"
+            f"Dominant trait: {dominant_trait} ({traits[dominant_trait]:.2f})\n"
+            f"Closest theory: {closest_theory} (similarity: {similarities[closest_theory]:.2f})\n"
+            f"Trait vector: {[f'{k}: {traits[k]:.2f}' for k in FUNDAMENTAL_TRAITS]}\n"
+            f"Theory similarities: {', '.join(f'{k}: {v:.2f}' for k,v in similarities.items())}"
+        )
+        conversation_history.append({
+            "speaker": "SoulModel",
+            "text": reflection,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        if len(conversation_history) > 100:
+            conversation_history = conversation_history[-100:]
+        # Send to clients
+        data_to_send = {
+            "traits": traits,
+            "trait_names": FUNDAMENTAL_TRAITS,
+            "history": history,
+            "step": step,
+            "theory_similarities": similarities,
+            "reflection": reflection,
+            "conversation_history": conversation_history,
+            "trait_first_seen": trait_first_seen
+        }
         for wc in list(clients):
-            try:await wc.send_json(data_to_send)
-            except:clients.discard(wc)
-        step+=1; await asyncio.sleep(15) # Increased sleep
+            try:
+                await wc.send_json(data_to_send)
+            except:
+                clients.discard(wc)
+        step += 1
+        await asyncio.sleep(2)
 
 @app.on_event("startup")
 async def startup_event():asyncio.create_task(soul_simulation());print("Soul sim task created.")
@@ -399,6 +327,14 @@ static_dir_name="static"
 if not os.path.exists(static_dir_name): os.makedirs(static_dir_name)
 # Ensure your updated index.html (provided in the other part of the response) is in static/index.html
 app.mount("/",StaticFiles(directory=static_dir_name,html=True),name="static")
+
+# --- Hardware Integration Placeholder ---
+@app.post("/hardware_input")
+async def hardware_input(request: Request):
+    # Accept JSON with sensor/actuator data, update traits accordingly (future work)
+    data = await request.json()
+    # Example: traits['perception'] = data.get('camera_input', traits['perception'])
+    return JSONResponse({"status": "ok", "received": data})
 
 if __name__=="__main__":
     import uvicorn;mn="chatbot";p=int(os.getenv("PORT",10000))
