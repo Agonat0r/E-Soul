@@ -2,23 +2,32 @@ import time
 import google.generativeai as genai
 import os
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+print("Starting Gemini chatbot...")
 
-model = genai.GenerativeModel("gemini-pro")
-chat = model.start_chat(history=[])
+api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    print("❌ GEMINI_API_KEY is missing.")
+    exit(1)
 
-message = "Hello, who are you?"
+genai.configure(api_key=api_key)
 
-while True:
-    try:
+try:
+    model = genai.GenerativeModel("gemini-pro")
+    chat = model.start_chat(history=[])
+
+    message = "Hello, who are you?"
+
+    while True:
         response = chat.send_message(message)
         message = response.text.strip()
+
+        print("🤖 Gemini:", message)
 
         with open("chat_log.txt", "w", encoding="utf-8") as f:
             f.write(message)
 
-        print("Gemini:", message)
         time.sleep(10)
-    except Exception as e:
-        print("Error:", e)
-        time.sleep(5)
+
+except Exception as e:
+    print("❌ Error during Gemini loop:", e)
+    time.sleep(10)
