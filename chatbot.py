@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 import numpy as np
+import google.generativeai as genai
 
 app = FastAPI()
 
@@ -30,7 +31,7 @@ trait_first_seen = {k: 0 for k in initial_traits}  # trait name -> step first se
 
 clients = set()
 
-def generate_reflection(traits):
+def generate_hf_reflection(traits):
     api_key = os.getenv("HF_API_KEY")
     if not api_key:
         return "No Hugging Face API key set."
@@ -46,7 +47,7 @@ def generate_reflection(traits):
     }
     try:
         response = requests.post(
-            "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
+            "https://api-inference.huggingface.co/models/bigscience/bloom",
             headers=headers, json=payload, timeout=10
         )
         if response.status_code == 200:
@@ -55,6 +56,23 @@ def generate_reflection(traits):
             return "Reflection unavailable."
     except Exception:
         return "Reflection unavailable."
+
+def generate_gemini_reflection(traits):
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return "No Gemini API key set."
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("models/gemini-2.0-pro")
+    prompt = (
+        "Given these soul traits and their values:\n" +
+        "\n".join(f"{k}: {v:.2f}" for k, v in traits.items()) +
+        "\nWrite a short, unbiased, philosophical reflection on this soul's current state."
+    )
+    try:
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception:
+        return "Gemini reflection unavailable."
 
 async def soul_simulation():
     global traits, history, conversation_history, trait_first_seen
@@ -89,9 +107,13 @@ async def soul_simulation():
             kmeans = KMeans(n_clusters=min(4, len(history)), n_init=10)
             clusters = kmeans.fit_predict(X).tolist()
 
-        reflection = generate_reflection(traits)
-        # Alternate speakers AI1/AI2
-        speaker = "AI1" if step % 2 == 0 else "AI2"
+        # Alternate between Hugging Face and Gemini
+        if step % 2 == 0:
+            reflection = generate_hf_reflection(traits)
+            speaker = "AI1 (HF)"
+        else:
+            reflection = generate_gemini_reflection(traits)
+            speaker = "AI2 (Gemini)"
         conversation_history.append({
             "speaker": speaker,
             "text": reflection,
