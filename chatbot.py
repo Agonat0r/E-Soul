@@ -3,7 +3,7 @@ import random
 import os
 import requests 
 from datetime import datetime, timezone
-from fastapi import FastAPI, WebSocket, Request, UploadFile
+from fastapi import FastAPI, WebSocket, Request, UploadFile, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
@@ -537,6 +537,22 @@ async def upload_firmware(request: Request):
         return JSONResponse({"status": "ok", "logs": logs})
     except subprocess.CalledProcessError as e:
         return JSONResponse({"status": "error", "logs": e.output, "error": str(e)}, status_code=400)
+
+@app.post("/import_schematic_google")
+async def import_schematic_google(data: dict = Body(...)):
+    # Placeholder: In the future, fetch and parse schematic from Google
+    # For now, return a sample set
+    return {
+        "status": "ok",
+        "mcus": [
+            {"type": "arduino", "x": 40, "y": 80},
+            {"type": "esp32", "x": 200, "y": 120}
+        ],
+        "modules": [
+            {"name": "Ultrasonic Sensor", "x": 400, "y": 100},
+            {"name": "LED", "x": 500, "y": 200}
+        ]
+    }
 
 if __name__=="__main__":
     import uvicorn;mn="chatbot";p=int(os.getenv("PORT",10000))

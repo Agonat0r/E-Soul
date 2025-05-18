@@ -150,6 +150,8 @@
               <div id="proto-modules" style="position:absolute;left:200px;top:20px;z-index:2;"></div>
             </div>
             <div id="proto-connection-data" style="margin-top:10px;background:var(--panel);padding:10px;border-radius:6px;min-height:40px;font-family:monospace;font-size:0.95em;"></div>
+            <button id="auto-connect-btn" style="margin-bottom:10px;padding:7px 18px;border-radius:6px;background:var(--accent2);color:var(--fg);border:none;cursor:pointer;font-weight:bold;float:right;">Auto Connect</button>
+            <button id="export-btn" style="margin-bottom:10px;margin-right:10px;padding:7px 18px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-weight:bold;float:right;">Export Code</button>
           </div>
           <!-- Existing robot canvas and schematic upload below -->
           <div id="robot-canvas" style="width:100%;height:400px;border:2px dashed var(--accent2);border-radius:10px;background:var(--panel-alt);position:relative;overflow:hidden;"></div>
@@ -660,7 +662,7 @@
     }
     window.deleteProtoMCU = function() {
       protoMCU = null;
-      protoConnections = protoConnections.filter(conn => conn.to.mcu === undefined && conn.from.mcu === undefined);
+      protoConnections = [];
       document.getElementById('proto-mcu').innerHTML = '';
       renderProtoWires();
       renderProtoConnectionData();
@@ -739,7 +741,7 @@
       if (!protoSelectedPin) {
         protoSelectedPin = {type, modIdxOrPin, pinName};
       } else {
-        // Connect if one is mcu and one is mod
+        // Connect if one is mcu and one is mod, and both pins are defined
         if ((protoSelectedPin.type === 'mcu' && type === 'mod') || (protoSelectedPin.type === 'mod' && type === 'mcu')) {
           let from, to;
           if (protoSelectedPin.type === 'mod') {
@@ -749,11 +751,17 @@
             from = {mod: modIdxOrPin, pin: pinName};
             to = {mcu: protoSelectedPin.modIdxOrPin, pin: protoSelectedPin.pinName};
           }
-          protoConnections.push({from, to});
-          protoSelectedPin = null;
-          checkProtoSafety();
-          renderProtoWires();
-          renderProtoConnectionData();
+          // Only add connection if both pins are defined (not undefined)
+          if ((from.mod !== undefined && from.pin !== undefined && to.mcu !== undefined && to.pin !== undefined)) {
+            protoConnections.push({from, to});
+            protoSelectedPin = null;
+            checkProtoSafety();
+            renderProtoWires();
+            renderProtoConnectionData();
+          } else {
+            // Reset selection if incomplete
+            protoSelectedPin = null;
+          }
         } else {
           protoSelectedPin = {type, modIdxOrPin, pinName};
         }
@@ -797,13 +805,15 @@
     function renderProtoConnectionData() {
       const div = document.getElementById('proto-connection-data');
       if (protoConnections.length === 0) { div.textContent = 'No connections yet.'; return; }
-      div.innerHTML = protoConnections.map(conn => {
-        let modName = protoModules[conn.from.mod]?.name || '?';
-        let toModName = protoModules[conn.to.mod]?.name;
-        let warn = '';
-        if (toModName && protoModules[conn.to.mod]?.isBlown) warn = ' <span style="color:#e53935;font-weight:bold;">(Blown!)</span>';
-        return `${modName} [${conn.from.pin}] → MCU [${conn.to.pin}]${warn}`;
-      }).join('<br>');
+      div.innerHTML = protoConnections
+        .filter(conn => conn.from && conn.to && conn.from.pin !== undefined && conn.to.pin !== undefined)
+        .map(conn => {
+          let modName = protoModules[conn.from.mod]?.name || '?';
+          let toModName = protoModules[conn.to.mod]?.name;
+          let warn = '';
+          if (toModName && protoModules[conn.to.mod]?.isBlown) warn = ' <span style="color:#e53935;font-weight:bold;">(Blown!)</span>';
+          return `${modName} [${conn.from.pin}] → MCU [${conn.to.pin}]${warn}`;
+        }).join('<br>');
     }
     document.getElementById('mcu-board-select').onchange = function() {
       renderProtoMCU();
@@ -825,6 +835,385 @@
     renderProtoModules();
     renderProtoWires();
     renderProtoConnectionData();
+
+    // Add Auto Connect button to prototyping section
+    const protoSection = document.getElementById('prototyping-section');
+    const autoConnectBtn = document.getElementById('auto-connect-btn');
+    autoConnectBtn.onclick = autoConnectProto;
+
+    function autoConnectProto() {
+      if (!protoMCU) return;
+      const mcuType = protoMCU.type;
+      const mcuPins = MCU_PINOUTS[mcuType] ? [...MCU_PINOUTS[mcuType]] : [];
+      let usedPins = new Set();
+      // Find power and GND pins
+      const powerPins = mcuPins.filter(p => /3V3|5V|VCC/i.test(p));
+      const gndPins = mcuPins.filter(p => /GND/i.test(p));
+      const gpioPins = mcuPins.filter(p => !/3V3|5V|VCC|GND/i.test(p));
+      // Clear existing connections
+      protoConnections = [];
+      protoModules.forEach((mod, modIdx) => {
+        const model = getModuleModel(mod.name, mod.modelIdx||0);
+        (model.pins || []).forEach(pin => {
+          let mcuPin = undefined;
+          if (/VCC|3V3|5V|\+/i.test(pin)) {
+            mcuPin = powerPins.find(p => !usedPins.has(p));
+            if (!mcuPin) mcuPin = powerPins[0];
+          } else if (/GND|\-/i.test(pin)) {
+            mcuPin = gndPins.find(p => !usedPins.has(p));
+            if (!mcuPin) mcuPin = gndPins[0];
+          } else if (/SIG|DATA|TRIG|ECHO|SCL|SDA|R|G|B/i.test(pin)) {
+            mcuPin = gpioPins.find(p => !usedPins.has(p));
+            if (!mcuPin) mcuPin = gpioPins[0];
+          } else {
+            mcuPin = gpioPins.find(p => !usedPins.has(p)) || powerPins[0] || gndPins[0];
+          }
+          if (mcuPin) {
+            protoConnections.push({from: {mod: modIdx, pin: pin}, to: {mcu: 0, pin: mcuPin}});
+            usedPins.add(mcuPin);
+          }
+        });
+      });
+      checkProtoSafety();
+      renderProtoWires();
+      renderProtoConnectionData();
+    }
+
+    // Add Export and Universal Translator UI to prototyping section
+    const exportBtn = document.getElementById('export-btn');
+    exportBtn.onclick = showExportDialog;
+
+    // Export Dialog
+    function showExportDialog() {
+      let dialog = document.getElementById('export-dialog');
+      if (!dialog) {
+        dialog = document.createElement('div');
+        dialog.id = 'export-dialog';
+        dialog.style = 'position:fixed;top:20%;left:50%;transform:translate(-50%,0);background:var(--panel);border:2px solid var(--accent2);border-radius:10px;padding:24px;z-index:1000;box-shadow:0 2px 16px #0003;';
+        dialog.innerHTML = `
+          <h3>Export Code</h3>
+          <label><b>Target Platform:</b></label>
+          <select id='export-platform'>
+            <option value='arduino-ino'>Arduino (.ino)</option>
+            <option value='esp32-ino'>ESP32 Arduino (.ino)</option>
+            <option value='esp32-py'>ESP32 MicroPython (.py)</option>
+            <option value='rpi-py'>Raspberry Pi Python (.py)</option>
+            <option value='stm32-c'>STM32 C</option>
+          </select>
+          <br><br>
+          <button id='do-export-btn' style='padding:7px 18px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-weight:bold;'>Download</button>
+          <button id='close-export-btn' style='margin-left:10px;padding:7px 18px;border-radius:6px;background:var(--panel-alt);color:var(--fg);border:none;cursor:pointer;'>Cancel</button>
+          <div id='export-download-link' style='margin-top:15px;'></div>
+        `;
+        document.body.appendChild(dialog);
+        document.getElementById('close-export-btn').onclick = () => dialog.remove();
+        document.getElementById('do-export-btn').onclick = () => {
+          const platform = document.getElementById('export-platform').value;
+          const code = generateExportCode(platform);
+          const blob = new Blob([code], {type: 'text/plain'});
+          const url = URL.createObjectURL(blob);
+          const ext = platform.endsWith('py') ? 'py' : (platform.endsWith('c') ? 'c' : 'ino');
+          const fname = `exported_code.${ext}`;
+          document.getElementById('export-download-link').innerHTML = `<a href='${url}' download='${fname}' style='color:var(--accent);font-weight:bold;'>Download ${fname}</a>`;
+        };
+      }
+    }
+
+    function generateExportCode(platform) {
+      // Simple template-based code generation for demo
+      let code = '';
+      let pinMap = {};
+      protoConnections.forEach(conn => {
+        const mod = protoModules[conn.from.mod];
+        if (!mod) return;
+        pinMap[conn.from.pin] = conn.to.pin;
+      });
+      if (platform === 'arduino-ino' || platform === 'esp32-ino') {
+        code += '// Auto-generated wiring code\n';
+        Object.keys(pinMap).forEach(sig => {
+          code += `#define ${sig}_PIN ${pinMap[sig]}\n`;
+        });
+        code += '\nvoid setup() {\n';
+        Object.keys(pinMap).forEach(sig => {
+          code += `  pinMode(${sig}_PIN, OUTPUT);\n`;
+        });
+        code += '}\n\nvoid loop() {\n  // Add your logic here\n}\n';
+      } else if (platform === 'esp32-py' || platform === 'rpi-py') {
+        code += '# Auto-generated wiring code\n';
+        code += 'import machine\n';
+        Object.keys(pinMap).forEach(sig => {
+          code += `${sig}_pin = machine.Pin(${JSON.stringify(pinMap[sig])}, machine.Pin.OUT)\n`;
+        });
+        code += '\n# Add your logic here\n';
+      } else if (platform === 'stm32-c') {
+        code += '/* Auto-generated wiring code */\n';
+        Object.keys(pinMap).forEach(sig => {
+          code += `#define ${sig}_PIN ${pinMap[sig]}\n`;
+        });
+        code += '\nvoid MX_GPIO_Init(void) {\n';
+        Object.keys(pinMap).forEach(sig => {
+          code += `  // Configure ${sig}_PIN as output\n`;
+        });
+        code += '}\n\nint main(void) {\n  MX_GPIO_Init();\n  while (1) {\n    // Add your logic here\n  }\n}\n';
+      }
+      return code;
+    }
+
+    // Universal Translator UI
+    const translatorSection = document.createElement('div');
+    translatorSection.innerHTML = `
+      <h3>Universal Code Translator</h3>
+      <label>Paste or upload code:</label><br>
+      <textarea id='trans-input' rows='8' style='width:100%;margin-bottom:8px;'></textarea><br>
+      <label>From:</label>
+      <select id='trans-from'>
+        <option value='arduino-ino'>Arduino (.ino)</option>
+        <option value='esp32-ino'>ESP32 Arduino (.ino)</option>
+        <option value='esp32-py'>ESP32 MicroPython (.py)</option>
+        <option value='rpi-py'>Raspberry Pi Python (.py)</option>
+        <option value='stm32-c'>STM32 C</option>
+      </select>
+      <label style='margin-left:10px;'>To:</label>
+      <select id='trans-to'>
+        <option value='arduino-ino'>Arduino (.ino)</option>
+        <option value='esp32-ino'>ESP32 Arduino (.ino)</option>
+        <option value='esp32-py'>ESP32 MicroPython (.py)</option>
+        <option value='rpi-py'>Raspberry Pi Python (.py)</option>
+        <option value='stm32-c'>STM32 C</option>
+      </select>
+      <button id='trans-btn' style='margin-left:10px;padding:7px 18px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-weight:bold;'>Translate</button>
+      <button id='trans-ai-btn' style='margin-left:10px;padding:7px 18px;border-radius:6px;background:var(--accent2);color:var(--fg);border:none;cursor:pointer;font-weight:bold;'>AI Translate</button>
+      <div id='trans-output' style='margin-top:12px;background:var(--panel-alt);padding:10px;border-radius:6px;min-height:40px;font-family:monospace;'></div>
+    `;
+    protoSection.parentNode.insertBefore(translatorSection, protoSection.nextSibling);
+
+    document.getElementById('trans-btn').onclick = function() {
+      const from = document.getElementById('trans-from').value;
+      const to = document.getElementById('trans-to').value;
+      const code = document.getElementById('trans-input').value;
+      // Simple template-based translation for demo
+      let out = code;
+      if (from !== to) {
+        if (from.startsWith('arduino') && to.startsWith('esp32')) {
+          out = code.replace(/digitalWrite/g, 'digitalWrite').replace(/pinMode/g, 'pinMode');
+        } else if (from.startsWith('arduino') && to.endsWith('py')) {
+          out = code.replace(/digitalWrite\((\w+),\s*(HIGH|LOW)\)/g, '$1_pin.value(1 if $2=="HIGH" else 0)');
+        } else if (from.endsWith('py') && to.startsWith('arduino')) {
+          out = code.replace(/(\w+)_pin\.value\((\d)\)/g, 'digitalWrite($1_PIN, $2 ? HIGH : LOW)');
+        } else {
+          out = '// [Template-based translation not available for this pair]\n' + code;
+        }
+      }
+      document.getElementById('trans-output').textContent = out;
+    };
+    document.getElementById('trans-ai-btn').onclick = async function() {
+      const from = document.getElementById('trans-from').value;
+      const to = document.getElementById('trans-to').value;
+      const code = document.getElementById('trans-input').value;
+      document.getElementById('trans-output').textContent = 'Translating with AI...';
+      // Call backend AI translation endpoint (not implemented in this demo)
+      // For now, just echo
+      document.getElementById('trans-output').textContent = '[AI translation would go here]\n' + code;
+    };
+
+    // Add Import Schematic from Google button
+    const importBtn = document.createElement('button');
+    importBtn.textContent = 'Import Schematic from Google';
+    importBtn.style = 'margin-bottom:10px;margin-right:10px;padding:7px 18px;border-radius:6px;background:var(--accent2);color:var(--fg);border:none;cursor:pointer;font-weight:bold;float:right;';
+    importBtn.onclick = async function() {
+      const term = prompt('Enter Google schematic search term or URL:');
+      if (!term) return;
+      const resp = await fetch('/import_schematic_google', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({query: term})
+      });
+      const data = await resp.json();
+      if (data.status === 'ok') {
+        // Place MCUs
+        protoMCUs = data.mcus.map(mcu => ({...mcu}));
+        // Place modules
+        protoModules = data.modules.map(mod => ({...mod, modelIdx: 0, voltage: mod.name==="DC Source"?5:undefined}));
+        protoConnections = [];
+        renderProtoMCUs();
+        renderProtoModules();
+        renderProtoWires();
+        renderProtoConnectionData();
+      } else {
+        alert('Import failed.');
+      }
+    };
+    protoSection.insertBefore(importBtn, exportBtn.nextSibling);
+
+    // Support multiple MCUs
+    let protoMCUs = [{type: document.getElementById('mcu-board-select').value, x: 40, y: 80}];
+
+    document.getElementById('mcu-board-select').onchange = function() {
+      // Add a new MCU of the selected type
+      protoMCUs.push({type: this.value, x: 40 + protoMCUs.length*120, y: 80});
+      renderProtoMCUs();
+      renderProtoWires();
+      renderProtoConnectionData();
+    };
+
+    function renderProtoMCUs() {
+      const mcuDiv = document.getElementById('proto-mcu');
+      mcuDiv.innerHTML = '';
+      protoMCUs.forEach((mcu, mcuIdx) => {
+        const mcuType = mcu.type;
+        const pins = MCU_PINOUTS[mcuType] || [];
+        const box = document.createElement('div');
+        box.className = 'proto-mcu-box';
+        box.style = `position:absolute;left:${mcu.x}px;top:${mcu.y}px;width:110px;min-height:30px;background:var(--panel);border:2px solid var(--accent);border-radius:10px;padding:6px 4px 6px 4px;z-index:2;box-shadow:0 1px 4px #0001;cursor:move;`;
+        box.innerHTML = `
+          <div style='display:flex;align-items:center;justify-content:space-between;'>
+            <b style='font-size:1em;'>${mcuType.toUpperCase()}</b>
+            <span class='delete-btn' style='display:none;cursor:pointer;color:#e53935;font-size:1.2em;margin-left:8px;' onclick='deleteProtoMCU(${mcuIdx})' title='Delete'>&times;</span>
+          </div>
+          <div style='display:flex;flex-wrap:wrap;gap:2px 4px;margin-top:2px;'>
+            ${pins.map((p,i)=>`<div class='mcu-pin' data-mcu='${mcuIdx}' data-pin='${p}' style='font-size:0.78em;padding:2px 4px;border-radius:4px;background:var(--panel-alt);border:1px solid var(--accent2);cursor:pointer;margin:1px 0;' onclick='protoPinClick("mcu",${mcuIdx},"${p}")'>${p}</div>`).join('')}
+          </div>
+        `;
+        // Move tool
+        let isDragging = false, offsetX = 0, offsetY = 0;
+        box.onmousedown = function(e) {
+          if (e.target.classList.contains('delete-btn')) return;
+          isDragging = true;
+          offsetX = e.offsetX;
+          offsetY = e.offsetY;
+          document.body.style.cursor = 'move';
+          window._draggedMCU = mcuIdx;
+        };
+        document.onmouseup = function() { isDragging = false; document.body.style.cursor = ''; window._draggedMCU = null; };
+        document.onmousemove = function(e) {
+          if (isDragging && window._draggedMCU === mcuIdx) {
+            mcu.x = Math.max(0, Math.min(e.pageX - protoCanvas.getBoundingClientRect().left - offsetX, protoCanvas.offsetWidth-110));
+            mcu.y = Math.max(0, Math.min(e.pageY - protoCanvas.getBoundingClientRect().top - offsetY, protoCanvas.offsetHeight-30));
+            renderProtoMCUs();
+            renderProtoWires();
+          }
+        };
+        box.onmouseenter = () => { box.querySelector('.delete-btn').style.display = 'inline'; };
+        box.onmouseleave = () => { box.querySelector('.delete-btn').style.display = 'none'; };
+        mcuDiv.appendChild(box);
+      });
+    }
+    window.deleteProtoMCU = function(idx) {
+      protoMCUs.splice(idx,1);
+      protoConnections = protoConnections.filter(conn => conn.to.mcu !== idx && conn.from.mcu !== idx);
+      renderProtoMCUs();
+      renderProtoWires();
+      renderProtoConnectionData();
+    };
+
+    // Update protoPinClick to support multiple MCUs
+    window.protoPinClick = function(type, modOrMcuIdx, pinName) {
+      if (!protoSelectedPin) {
+        protoSelectedPin = {type, modOrMcuIdx, pinName};
+      } else {
+        if ((protoSelectedPin.type === 'mcu' && type === 'mod') || (protoSelectedPin.type === 'mod' && type === 'mcu')) {
+          let from, to;
+          if (protoSelectedPin.type === 'mod') {
+            from = {mod: protoSelectedPin.modOrMcuIdx, pin: protoSelectedPin.pinName};
+            to = {mcu: modOrMcuIdx, pin: pinName};
+          } else {
+            from = {mod: modOrMcuIdx, pin: pinName};
+            to = {mcu: protoSelectedPin.modOrMcuIdx, pin: protoSelectedPin.pinName};
+          }
+          if ((from.mod !== undefined && from.pin !== undefined && to.mcu !== undefined && to.pin !== undefined)) {
+            protoConnections.push({from, to});
+            protoSelectedPin = null;
+            checkProtoSafety();
+            renderProtoWires();
+            renderProtoConnectionData();
+          } else {
+            protoSelectedPin = null;
+          }
+        } else {
+          protoSelectedPin = {type, modOrMcuIdx, pinName};
+        }
+      }
+    };
+
+    // Update wire rendering to connect exact pin positions
+    function renderProtoWires() {
+      const svg = document.getElementById('proto-wires');
+      svg.innerHTML = '';
+      protoConnections.forEach(conn => {
+        // Find module pin position
+        let modEl = document.querySelector(`.proto-module:nth-child(${conn.from.mod+1}) .mod-pin[data-pin='${conn.from.pin}']`);
+        let mcuEl = document.querySelector(`.proto-mcu-box:nth-child(${conn.to.mcu+1}) .mcu-pin[data-pin='${conn.to.pin}']`);
+        if (!modEl || !mcuEl) return;
+        let modRect = modEl.getBoundingClientRect();
+        let mcuRect = mcuEl.getBoundingClientRect();
+        let canvasRect = protoCanvas.getBoundingClientRect();
+        let x1 = modRect.left + modRect.width/2 - canvasRect.left;
+        let y1 = modRect.top + modRect.height/2 - canvasRect.top;
+        let x2 = mcuRect.left + mcuRect.width/2 - canvasRect.left;
+        let y2 = mcuRect.top + mcuRect.height/2 - canvasRect.top;
+        svg.innerHTML += `<line x1='${x1}' y1='${y1}' x2='${x2}' y2='${y2}' stroke='var(--accent)' stroke-width='3' marker-end='url(#arrowhead)'/>`;
+      });
+      svg.innerHTML += `<defs><marker id='arrowhead' markerWidth='8' markerHeight='8' refX='4' refY='4' orient='auto' markerUnits='strokeWidth'><path d='M0,0 L8,4 L0,8 L2,4 z' fill='var(--accent)'/></marker></defs>`;
+    }
+
+    // Update module drag logic for smooth movement
+    function renderProtoModules() {
+      const modDiv = document.getElementById('proto-modules');
+      modDiv.innerHTML = '';
+      protoModules.forEach((mod, idx) => {
+        const models = MODULE_MODELS[mod.name] || [{name:mod.name,pins:MODULE_PINOUTS[mod.name]||["VCC","GND","Signal"]}];
+        const model = getModuleModel(mod.name, mod.modelIdx||0);
+        const pins = model.pins;
+        let isBlown = mod.isBlown;
+        mod.width = Math.max(90, 18 * pins.length + 30);
+        const modEl = document.createElement('div');
+        modEl.className = 'proto-module';
+        modEl.style = `position:absolute;left:${mod.x}px;top:${mod.y}px;width:${mod.width}px;min-height:30px;background:var(--panel);border:2px solid ${isBlown?'#e53935':'var(--accent2)'};border-radius:10px;padding:6px 4px 6px 4px;z-index:2;box-shadow:${isBlown?'0 0 10px #e5393555':''};cursor:move;`;
+        modEl.innerHTML = `
+          <div style='display:flex;align-items:center;justify-content:space-between;'>
+            <b style='font-size:1em;'>${mod.name}</b>
+            <span class='delete-btn' style='display:none;cursor:pointer;color:#e53935;font-size:1.2em;margin-left:8px;' onclick='deleteProtoModule(${idx})' title='Delete'>&times;</span>
+          </div>
+          <select onchange='changeProtoModel(${idx},this.value)' style='width:100%;margin:4px 0 6px 0;padding:2px 4px;border-radius:5px;font-size:0.85em;'>
+            ${models.map((m,i)=>`<option value='${i}' ${i===(mod.modelIdx||0)?'selected':''}>${m.name}</option>`).join('')}
+          </select>
+          ${mod.name==="DC Source"||mod.name==="Battery"?`<input type='number' min='0' max='24' step='0.1' value='${mod.voltage||5}' onchange='setProtoVoltage(${idx},this.value)' style='width:70px;margin-bottom:4px;font-size:0.85em;' placeholder='Voltage (V)'> V` : ''}
+          <div style='display:flex;flex-wrap:wrap;gap:2px 4px;'>
+            ${pins.map(p=>`<div class='mod-pin' data-mod='${idx}' data-pin='${p}' style='font-size:0.78em;padding:2px 4px;border-radius:4px;background:${isBlown?'#ffcdd2':'var(--panel-alt)'};border:1px solid var(--accent2);cursor:pointer;margin:1px 0;' onclick='protoPinClick("mod",${idx},"${p}")'>${p}</div>`).join('')}
+          </div>
+          ${isBlown?`<div style='color:#e53935;font-weight:bold;margin-top:4px;'>💥 Blown! Overvoltage</div>`:''}
+        `;
+        // Move tool
+        let isDragging = false, offsetX = 0, offsetY = 0;
+        modEl.onmousedown = function(e) {
+          if (e.target.classList.contains('delete-btn')) return;
+          isDragging = true;
+          offsetX = e.offsetX;
+          offsetY = e.offsetY;
+          document.body.style.cursor = 'move';
+          window._draggedMod = idx;
+        };
+        document.onmouseup = function() { isDragging = false; document.body.style.cursor = ''; window._draggedMod = null; };
+        document.onmousemove = function(e) {
+          if (isDragging && window._draggedMod === idx) {
+            mod.x = Math.max(0, Math.min(e.pageX - protoCanvas.getBoundingClientRect().left - offsetX, protoCanvas.offsetWidth-mod.width));
+            mod.y = Math.max(0, Math.min(e.pageY - protoCanvas.getBoundingClientRect().top - offsetY, protoCanvas.offsetHeight-30));
+            renderProtoModules();
+            renderProtoWires();
+          }
+        };
+        modEl.onmouseenter = () => { modEl.querySelector('.delete-btn').style.display = 'inline'; };
+        modEl.onmouseleave = () => { modEl.querySelector('.delete-btn').style.display = 'none'; };
+        modDiv.appendChild(modEl);
+      });
+    }
+    // ... existing code ...
+    // On load, render all
+    renderProtoMCUs();
+    renderProtoModules();
+    renderProtoWires();
+    renderProtoConnectionData();
+    // ... existing code ...
   </script>
 </body>
 </html>
