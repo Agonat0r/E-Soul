@@ -317,7 +317,8 @@ async def soul_simulation():
         ftc = {name: ftc.get(name, DEFAULT_TRAIT_COLOR) for name in ctna}
 
         
-        trait_stats={}, corr_sum_list=["Awaiting sufficient historical data for analysis."]
+        trait_stats={}
+        corr_sum_list=["Awaiting sufficient historical data for analysis."]
         hist_for_analysis=history[max(0,len(history)-stats_window):]
         min_steps_for_stats=3 # Local min_steps for this specific analysis section
         if len(hist_for_analysis)>=min_steps_for_stats:
