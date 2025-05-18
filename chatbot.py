@@ -554,6 +554,10 @@ async def import_schematic_google(data: dict = Body(...)):
         ]
     }
 
+@app.get("/import_schematic_google")
+async def import_schematic_google_get():
+    return {"status": "error", "message": "This endpoint expects a POST request with JSON body."}
+
 if __name__=="__main__":
     import uvicorn;mn="chatbot";p=int(os.getenv("PORT",10000))
     print(f"🚀 Starting Uvicorn server on http://0.0.0.0:{p}")
