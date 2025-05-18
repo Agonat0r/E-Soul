@@ -121,7 +121,7 @@ def generate_hf_reflection(traits):
         if response.status_code == 200:
             return response.json()[0]["generated_text"].strip()
         else:
-            return "Reflection unavailable."
+            return f"Reflection unavailable (HF API Error: {response.status_code}). Check logs."
     except Exception:
         return "Reflection unavailable."
 
@@ -139,7 +139,7 @@ def generate_gemini_reflection(traits):
     )
     prompt = user_prompt if user_prompt else default_prompt
     try:
-        model = genai.GenerativeModel("models/gemini-2.0-pro")
+        model = genai.GenerativeModel("models/gemini-2.0-flash")
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception:
@@ -184,7 +184,7 @@ async def set_api_keys(request: Request):
     if gemini_key:
         try:
             genai.configure(api_key=gemini_key)
-            model = genai.GenerativeModel("models/gemini-2.0-pro")
+            model = genai.GenerativeModel("models/gemini-2.0-flash")
             response = model.generate_content("Test")
             if not hasattr(response, 'text') or not response.text:
                 errors["gemini_api_key"] = "Invalid Gemini API key."
