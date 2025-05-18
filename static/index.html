@@ -1,11 +1,30 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Soul Trait Live Plot</title>
+  <meta charset="UTF-8">
+  <title>Soul Trait Evolution (Live)</title>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <style>
     body { background:#222; color:#fff; font-family:sans-serif; }
-    #plot { width:900px; height:600px; margin-bottom: 30px; }
+    #barplot { width:900px; height:350px; margin-bottom: 30px; }
+    #timeline { width:900px; height:300px; margin-bottom: 30px; }
+    #trait-table {
+      background: #111;
+      color: #fff;
+      font-family: 'Courier New', Courier, monospace;
+      border-radius: 8px;
+      max-width: 900px;
+      margin: 0 auto 30px auto;
+      border-collapse: collapse;
+      width: 900px;
+    }
+    #trait-table th, #trait-table td {
+      border: 1px solid #333;
+      padding: 8px 12px;
+      text-align: left;
+    }
+    #trait-table th { background: #222; color: #0f0; }
+    #trait-table tr.dominant { background: #003300; }
     #terminal {
       background: #111;
       color: #0f0;
@@ -21,30 +40,79 @@
 </head>
 <body>
   <h1>Soul Trait Evolution (Live)</h1>
-  <div id="plot"></div>
+  <div id="barplot"></div>
+  <table id="trait-table"></table>
+  <div id="timeline"></div>
   <div id="terminal">Waiting for data...</div>
   <script>
     let history = [];
-    let traitNames = ["empathy", "curiosity", "self_awareness"];
+    let traitNames = [];
     let ws = new WebSocket("wss://" + window.location.host + "/ws");
 
-    function interpret(traits, names) {
-      // Simple interpretation logic, you can make this as complex as you want!
-      let [e, c, s] = traits;
-      let lines = [
-        `Empathy:        ${e.toFixed(2)}`,
-        `Curiosity:      ${c.toFixed(2)}`,
-        `Self-Awareness: ${s.toFixed(2)}`
-      ];
-      let summary = "";
-      if (e > 0.8 && c > 0.8 && s > 0.8) {
-        summary = "🌟 The soul is approaching an ideal, enlightened state!";
-      } else if (e < 0.3 || c < 0.3 || s < 0.3) {
-        summary = "⚠️ The soul is struggling in one or more areas.";
-      } else {
-        summary = "The soul is evolving and balancing its traits.";
-      }
+    function interpret(traits, dominance, dominantTrait) {
+      let lines = Object.entries(traits).map(([k, v]) => `${k.padEnd(16)} ${v.toFixed(2)} (${dominance[k].toFixed(1)}%)`);
+      let summary = `Most dominant trait: ${dominantTrait} (${dominance[dominantTrait].toFixed(1)}%)\n`;
+      summary += dominance[dominantTrait] > 60 ? "🌟 This trait is defining the soul right now!" : "The soul is balancing multiple influences.";
       return lines.join('\n') + "\n\n" + summary;
+    }
+
+    function updateBarPlot(traits, dominance) {
+      let names = Object.keys(traits);
+      let values = names.map(k => traits[k]);
+      let doms = names.map(k => dominance[k]);
+      let colors = names.map(k => doms[k] === Math.max(...doms) ? '#0f0' : '#3399ff');
+      let data = [{
+        x: names,
+        y: values,
+        type: 'bar',
+        marker: { color: colors },
+        text: doms.map(d => d.toFixed(1) + '%'),
+        textposition: 'auto',
+        hovertemplate: '%{x}: %{y:.2f} (%{text})<extra></extra>'
+      }];
+      let layout = {
+        title: 'Current Soul Traits',
+        yaxis: { range: [0, 1] },
+        plot_bgcolor: '#222',
+        paper_bgcolor: '#222',
+        font: { color: '#fff' }
+      };
+      Plotly.react('barplot', data, layout);
+    }
+
+    function updateTraitTable(traits, dominance, dominantTrait) {
+      let table = document.getElementById('trait-table');
+      let rows = `<tr><th>Trait</th><th>Value</th><th>Dominance (%)</th></tr>`;
+      for (let k of Object.keys(traits)) {
+        let dom = dominance[k].toFixed(1);
+        let rowClass = k === dominantTrait ? 'dominant' : '';
+        rows += `<tr class="${rowClass}"><td>${k}</td><td>${traits[k].toFixed(2)}</td><td>${dom}</td></tr>`;
+      }
+      table.innerHTML = rows;
+    }
+
+    function updateTimeline(history, traitNames) {
+      // Prepare z matrix for heatmap: rows=time, cols=traits
+      let z = history.map(snap => traitNames.map(t => snap[t] !== undefined ? snap[t] : null));
+      let data = [{
+        z: z,
+        x: traitNames,
+        y: Array.from({length: history.length}, (_, i) => i),
+        type: 'heatmap',
+        colorscale: 'Viridis',
+        colorbar: { title: 'Value', tickvals: [0, 0.5, 1] },
+        hoverongaps: false
+      }];
+      let layout = {
+        title: 'Trait Timeline (Heatmap)',
+        xaxis: { title: 'Trait' },
+        yaxis: { title: 'Step', autorange: 'reversed' },
+        plot_bgcolor: '#222',
+        paper_bgcolor: '#222',
+        font: { color: '#fff' },
+        margin: { t: 40 }
+      };
+      Plotly.react('timeline', data, layout);
     }
 
     ws.onmessage = function(event) {
@@ -52,31 +120,16 @@
       let traits = data.traits;
       traitNames = data.trait_names;
       history = data.history;
-
-      // Update plot
-      let xs = history.map(h => h[0]);
-      let ys = history.map(h => h[1]);
-      let zs = history.map(h => h[2]);
-      let trace = {
-        x: xs, y: ys, z: zs,
-        mode: 'lines+markers',
-        type: 'scatter3d',
-        marker: { size: 6, color: 'blue' },
-        line: { color: 'blue', width: 4 },
-        name: 'Evolving Soul'
-      };
-      let layout = {
-        title: "Soul Vector Evolution",
-        scene: {
-          xaxis: { title: traitNames[0], range: [0, 1] },
-          yaxis: { title: traitNames[1], range: [0, 1] },
-          zaxis: { title: traitNames[2], range: [0, 1] }
-        }
-      };
-      Plotly.newPlot('plot', [trace], layout);
-
-      // Update terminal
-      document.getElementById('terminal').textContent = interpret(traits, traitNames);
+      // Dominance calculation
+      let sum = Object.values(traits).reduce((a, b) => a + b, 0) || 1;
+      let dominance = {};
+      for (let k of Object.keys(traits)) dominance[k] = traits[k] / sum * 100;
+      let dominantTrait = Object.keys(dominance).reduce((a, b) => dominance[a] > dominance[b] ? a : b);
+      // Update all visualizations
+      updateBarPlot(traits, dominance);
+      updateTraitTable(traits, dominance, dominantTrait);
+      updateTimeline(history, traitNames);
+      document.getElementById('terminal').textContent = interpret(traits, dominance, dominantTrait);
     };
   </script>
 </body>
