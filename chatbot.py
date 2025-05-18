@@ -12,7 +12,6 @@ from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import cosine_similarity # Added for trait similarity
 import numpy as np
 import google.generativeai as genai
-import google.api_core.exceptions # To specifically catch NotFound
 import traceback
 
 # Your FastAPI application instance
@@ -46,7 +45,6 @@ trait_first_seen = {k: 0 for k in initial_traits}
 
 clients = set()
 user_prompt = None
-user_hf_api_key = None
 user_gemini_api_key = None
 
 # --- Trait Similarity Calculation Function ---
@@ -96,35 +94,6 @@ def calculate_trait_similarities_and_colors(
     return final_colors_for_historical_traits
 
 # --- Reflection Generation Functions ---
-def generate_hf_reflection(traits):
-    api_key = user_hf_api_key or os.getenv("HF_API_KEY")
-    if not api_key:
-        return "No Hugging Face API key set."
-    default_prompt = (
-        "Given these soul traits and their values:\n" +
-        "\n".join(f"{k}: {v:.2f}" for k, v in traits.items()) +
-        "\nImagine you are a human soul, alone in infinite darkness, with no sensory input, on the edge of sanity. "
-        "You have a lifespan of potentially 1000 steps. "
-        "Write a short, emotionally raw, subjective, and biased philosophical reflection on this soul's current state, as a human might experience it."
-    )
-    prompt = user_prompt if user_prompt else default_prompt
-    headers = {"Authorization": f"Bearer {api_key}"}
-    payload = {
-        "inputs": prompt,
-        "parameters": {"max_new_tokens": 80}
-    }
-    try:
-        response = requests.post(
-            "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
-            headers=headers, json=payload, timeout=10
-        )
-        if response.status_code == 200:
-            return response.json()[0]["generated_text"].strip()
-        else:
-            return f"Reflection unavailable (HF API Error: {response.status_code}). Check logs."
-    except Exception:
-        return "Reflection unavailable."
-
 def generate_gemini_reflection(traits):
     api_key = user_gemini_api_key or os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -156,30 +125,10 @@ async def set_prompt_endpoint(request: Request):
 
 @app.post("/set_api_keys")
 async def set_api_keys(request: Request):
-    global user_hf_api_key, user_gemini_api_key
+    global user_gemini_api_key
     data = await request.json()
-    hf_key = data.get("hf_api_key")
     gemini_key = data.get("gemini_api_key")
     errors = {}
-    # Validate Hugging Face key
-    if hf_key:
-        headers = {"Authorization": f"Bearer {hf_key}"}
-        payload = {"inputs": "Test"}
-        try:
-            resp = requests.post(
-                "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
-                headers=headers, json=payload, timeout=10
-            )
-            if resp.status_code == 401:
-                errors["hf_api_key"] = "Invalid Hugging Face API key."
-            elif resp.status_code != 200:
-                errors["hf_api_key"] = f"Hugging Face error: {resp.status_code}"
-            else:
-                user_hf_api_key = hf_key
-        except Exception as e:
-            errors["hf_api_key"] = f"Hugging Face error: {str(e)}"
-    else:
-        errors["hf_api_key"] = "No Hugging Face API key provided."
     # Validate Gemini key
     if gemini_key:
         try:
@@ -270,12 +219,8 @@ async def soul_simulation():
         rt = "Ref pend..."
         sn = "Sys"
         ctfr = traits.copy()
-        if step % 2 == 0:
-            rt = generate_hf_reflection(ctfr)
-            sn = "AI1(HF)"
-        else:
-            rt = generate_gemini_reflection(ctfr)
-            sn = "AI2(Gemini)"
+        rt = generate_gemini_reflection(ctfr)
+        sn = "AI2(Gemini)"
         conversation_history.append({"speaker": sn, "text": rt, "timestamp": datetime.now(timezone.utc).isoformat()})
         if len(conversation_history) > 100:
             conversation_history = conversation_history[-100:]
