@@ -12,7 +12,8 @@ if not api_key:
 genai.configure(api_key=api_key)
 
 try:
-    model = genai.GenerativeModel("gemini-pro")
+    # Use the supported model for chat-style interaction
+    model = genai.GenerativeModel("models/chat-bison-001")
     chat = model.start_chat(history=[])
 
     message = "Hello, who are you?"
