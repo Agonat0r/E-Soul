@@ -7,3 +7,4 @@ google-generativeai
 pandas
 plotly
 python-multipart
+tensorflow

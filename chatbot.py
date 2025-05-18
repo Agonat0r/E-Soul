@@ -16,6 +16,8 @@ import google.api_core.exceptions
 import traceback
 import tensorflow as tf
 from tensorflow import keras
+import serial.tools.list_ports
+import subprocess
 
 # Your FastAPI application instance
 app = FastAPI()
@@ -468,6 +470,73 @@ def build_system_id_model(num_features, num_outputs):
     return model
 # To train: model.fit(X_train, y_train, epochs=10)
 # To predict: model.predict(X_test)
+
+@app.get("/detect_microcontroller")
+async def detect_microcontroller():
+    ports = list(serial.tools.list_ports.comports())
+    detected = []
+    for p in ports:
+        desc = p.description.lower()
+        vid = getattr(p, 'vid', None)
+        pid = getattr(p, 'pid', None)
+        mcu_type = 'Unknown'
+        if 'arduino' in desc:
+            mcu_type = 'Arduino'
+        elif 'esp32' in desc or 'esp' in desc:
+            mcu_type = 'ESP32'
+        elif 'stm' in desc:
+            mcu_type = 'STM32'
+        elif 'raspberry' in desc:
+            mcu_type = 'Raspberry Pi'
+        detected.append({
+            'type': mcu_type,
+            'port': p.device,
+            'description': p.description,
+            'vid': vid,
+            'pid': pid
+        })
+    return JSONResponse({"status": "ok", "devices": detected})
+
+@app.post("/upload_firmware")
+async def upload_firmware(request: Request):
+    data = await request.json()
+    mcu_type = data.get('type')
+    port = data.get('port')
+    code = data.get('code')  # For Arduino, ESP32, etc.
+    firmware_path = data.get('firmware_path')  # For binary uploads
+    logs = ""
+    try:
+        if mcu_type == 'Arduino':
+            # Save code to temp file and use arduino-cli
+            with open('/tmp/sketch.ino', 'w') as f:
+                f.write(code)
+            cmd = [
+                'arduino-cli', 'compile', '--fqbn', 'arduino:avr:uno', '/tmp/sketch.ino'
+            ]
+            logs += subprocess.check_output(cmd, stderr=subprocess.STDOUT, text=True)
+            cmd = [
+                'arduino-cli', 'upload', '-p', port, '--fqbn', 'arduino:avr:uno', '/tmp/sketch.ino'
+            ]
+            logs += subprocess.check_output(cmd, stderr=subprocess.STDOUT, text=True)
+        elif mcu_type == 'ESP32':
+            # Save code to temp file and use esptool (assume binary for now)
+            cmd = [
+                'esptool.py', '--chip', 'esp32', '--port', port, 'write_flash', '0x1000', firmware_path
+            ]
+            logs += subprocess.check_output(cmd, stderr=subprocess.STDOUT, text=True)
+        elif mcu_type == 'STM32':
+            # Use stm32loader or similar
+            cmd = [
+                'stm32loader', '-p', port, '-e', '-w', '-v', firmware_path
+            ]
+            logs += subprocess.check_output(cmd, stderr=subprocess.STDOUT, text=True)
+        elif mcu_type == 'Raspberry Pi':
+            logs += 'Raspberry Pi does not require firmware upload via serial.'
+        else:
+            return JSONResponse({"status": "error", "error": "Unknown microcontroller type."}, status_code=400)
+        return JSONResponse({"status": "ok", "logs": logs})
+    except subprocess.CalledProcessError as e:
+        return JSONResponse({"status": "error", "logs": e.output, "error": str(e)}, status_code=400)
 
 if __name__=="__main__":
     import uvicorn;mn="chatbot";p=int(os.getenv("PORT",10000))

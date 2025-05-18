@@ -142,6 +142,20 @@
             <button id="analyze-schematic-btn" style="padding:6px 14px;border-radius:6px;background:var(--accent2);color:var(--fg);border:none;cursor:pointer;">Analyze</button>
             <div id="schematic-analysis" style="margin-top:10px;background:var(--panel);padding:10px;border-radius:6px;min-height:60px;"></div>
           </div>
+          <hr style="margin:30px 0;">
+          <div id="mcu-section">
+            <h3>Microcontroller Integration</h3>
+            <button id="scan-mcu-btn" style="padding:8px 18px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer;">Scan for Microcontrollers</button>
+            <select id="mcu-select" style="margin-left:10px;padding:6px 12px;border-radius:6px;"></select>
+            <div id="mcu-scan-status" style="margin-top:10px;color:var(--accent);"></div>
+            <div style="margin-top:18px;">
+              <label><b>Paste Code (Arduino/ESP32) or select firmware file:</b></label><br>
+              <textarea id="firmware-code" rows="8" style="width:100%;margin-bottom:10px;border-radius:6px;padding:10px;"></textarea><br>
+              <input type="file" id="firmware-file" accept=".bin,.hex,.uf2">
+              <button id="upload-firmware-btn" style="margin-top:10px;padding:8px 18px;border-radius:6px;background:var(--accent2);color:var(--fg);border:none;cursor:pointer;">Upload Firmware</button>
+              <div id="firmware-upload-status" style="margin-top:10px;background:var(--panel);padding:10px;border-radius:6px;min-height:60px;"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -154,6 +168,7 @@
     let currentConversationIndex = -1;
     let evolvingTheories = [];
     let currentStepForUI = 0; // To keep track of step for UI elements if needed
+    let detectedMCUs = [];
 
     document.getElementById('set-keys-btn').onclick = async function() { 
         const geminiKey = document.getElementById('gemini-key').value.trim();
@@ -495,6 +510,55 @@
         analysisDiv.innerHTML = `<b>Modules Detected:</b> ${data.modules.join(', ')}<br><b>Suggested Trait Mapping:</b> ${data.trait_mapping}`;
       } else {
         analysisDiv.textContent = 'Analysis failed.';
+      }
+    };
+    // Microcontroller detection and firmware upload
+    document.getElementById('scan-mcu-btn').onclick = async function() {
+      const status = document.getElementById('mcu-scan-status');
+      status.textContent = 'Scanning...';
+      const resp = await fetch('/detect_microcontroller');
+      const data = await resp.json();
+      if (data.status === 'ok') {
+        detectedMCUs = data.devices;
+        const sel = document.getElementById('mcu-select');
+        sel.innerHTML = '';
+        data.devices.forEach((d, i) => {
+          const opt = document.createElement('option');
+          opt.value = i;
+          opt.textContent = `${d.type} (${d.port})`;
+          sel.appendChild(opt);
+        });
+        status.textContent = data.devices.length ? 'Select a device.' : 'No microcontrollers found.';
+      } else {
+        status.textContent = 'Scan failed.';
+      }
+    };
+    document.getElementById('upload-firmware-btn').onclick = async function() {
+      const sel = document.getElementById('mcu-select');
+      const idx = sel.value;
+      if (!detectedMCUs[idx]) { document.getElementById('firmware-upload-status').textContent = 'No device selected.'; return; }
+      const mcu = detectedMCUs[idx];
+      const code = document.getElementById('firmware-code').value;
+      const fileInput = document.getElementById('firmware-file');
+      let firmware_path = '';
+      if (fileInput.files[0]) {
+        // In a real system, you would upload the file to the server and get a path
+        // For now, just show a message
+        document.getElementById('firmware-upload-status').textContent = 'Firmware file upload not implemented in this demo.';
+        return;
+      }
+      const payload = { type: mcu.type, port: mcu.port, code };
+      document.getElementById('firmware-upload-status').textContent = 'Uploading...';
+      const resp = await fetch('/upload_firmware', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+      if (data.status === 'ok') {
+        document.getElementById('firmware-upload-status').textContent = 'Upload successful!\n' + data.logs;
+      } else {
+        document.getElementById('firmware-upload-status').textContent = 'Upload failed.\n' + (data.logs || data.error);
       }
     };
     // Initialize with default tab
