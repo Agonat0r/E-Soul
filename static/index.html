@@ -1292,6 +1292,56 @@
         threeDiv._initialized = true;
       }
     };
+
+    // Add Randomize Hardware button
+    if (!document.getElementById('randomize-hw-btn')) {
+      const randomBtn = document.createElement('button');
+      randomBtn.id = 'randomize-hw-btn';
+      randomBtn.textContent = 'Randomize Hardware';
+      randomBtn.style = 'margin-bottom:10px;margin-right:10px;padding:7px 18px;border-radius:6px;background:var(--accent2);color:var(--fg);border:none;cursor:pointer;font-weight:bold;float:right;';
+      let randomizing = false;
+      let randomInterval = null;
+      randomBtn.onclick = function() {
+        randomizing = !randomizing;
+        randomBtn.textContent = randomizing ? 'Stop Randomize' : 'Randomize Hardware';
+        if (randomizing) {
+          randomInterval = setInterval(() => {
+            // 50% chance to add or remove
+            if (protoModules.length === 0 || Math.random() < 0.6) {
+              // Add random module
+              const available = MODULES.filter(m => !protoModules.some(pm => pm.name === m.name));
+              if (available.length > 0) {
+                const m = available[Math.floor(Math.random() * available.length)];
+                protoModules.push({name: m.name, x: Math.random()*400+100, y: Math.random()*200+50, modelIdx: 0, voltage: m.name==="DC Source"?5:undefined});
+              }
+            } else {
+              // Remove random module
+              protoModules.splice(Math.floor(Math.random() * protoModules.length), 1);
+            }
+            renderProtoModules();
+            renderProtoWires();
+            renderProtoConnectionData();
+            // Send to backend for trait/personality update
+            fetch('/update_hardware_traits', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({modules: protoModules})
+            })
+            .then(resp => resp.json())
+            .then(data => {
+              if (data.status === 'ok') {
+                // Update trait bars and personality summary
+                updateBarPlot(data.traits, {}, {});
+                document.getElementById('terminal').textContent = data.personality_summary;
+              }
+            });
+          }, 1500);
+        } else {
+          clearInterval(randomInterval);
+        }
+      };
+      document.getElementById('prototyping-section').insertBefore(randomBtn, document.getElementById('restart-mcu-btn'));
+    }
   </script>
 </body>
 </html>

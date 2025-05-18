@@ -84,6 +84,56 @@ user_gemini_api_key = None
 # --- Hardware Integration State ---
 hardware_modules = {}  # e.g., {'Camera': {'state': 'active', 'value': 0.8}, ...}
 
+# --- Hardware-to-Trait Mapping ---
+MODULE_TO_TRAIT_EFFECT = {
+    'camera': {'perception': 0.15},
+    'light sensor': {'perception': 0.08},
+    'microphone': {'perception': 0.07, 'sociality': 0.05},
+    'speaker': {'sociality': 0.07, 'emotion': 0.05},
+    'buzzer': {'emotion': 0.05},
+    'servo motor': {'agency': 0.12},
+    'dc motor': {'agency': 0.12},
+    'stepper motor': {'agency': 0.12},
+    'led': {'emotion': 0.07},
+    'memory': {'memory': 0.12},
+    'sd card': {'memory': 0.12},
+    'bluetooth': {'sociality': 0.1},
+    'wifi': {'sociality': 0.1},
+    'touch sensor': {'empathy': 0.07},
+    'proximity sensor': {'perception': 0.07},
+    'ultrasonic sensor': {'perception': 0.07},
+    'imu': {'adaptability': 0.08},
+    'gps': {'adaptability': 0.08},
+    'joystick': {'intentionality': 0.08},
+    'keypad': {'intentionality': 0.08},
+    'rotary encoder': {'intentionality': 0.08},
+    'potentiometer': {'intentionality': 0.08},
+    'temperature sensor': {'reasoning': 0.07},
+    'pressure sensor': {'reasoning': 0.07},
+    'humidity sensor': {'reasoning': 0.07},
+    'gas sensor': {'reasoning': 0.07},
+    'flame sensor': {'reasoning': 0.07},
+    'color sensor': {'perception': 0.07},
+    'rfid': {'memory': 0.07, 'sociality': 0.05},
+    'relay': {'agency': 0.07},
+    'fan': {'agency': 0.07},
+    'pump': {'agency': 0.07},
+    'valve': {'agency': 0.07},
+    'magnetometer': {'adaptability': 0.07},
+    'accelerometer': {'adaptability': 0.07},
+    'gyroscope': {'adaptability': 0.07},
+    'lcd display': {'memory': 0.07, 'sociality': 0.05},
+    'oled display': {'memory': 0.07, 'sociality': 0.05},
+    'e-paper display': {'memory': 0.07, 'sociality': 0.05},
+    'battery': {'self_awareness': 0.07},
+    'power module': {'self_awareness': 0.07},
+    'solar panel': {'self_awareness': 0.07},
+    # Add more as needed
+}
+
+# --- Track last hardware state for self-discovery ---
+last_hardware_modules = set()
+
 # --- Helper Functions (Trait Stats, Correlations, Similarity Colors) ---
 def get_trait_statistics(trait_history_matrix: np.ndarray, trait_names: list[str], current_traits_dict: dict, window_size: int = 10) -> dict:
     stats = {}
@@ -557,6 +607,55 @@ async def import_schematic_google(data: dict = Body(...)):
 @app.get("/import_schematic_google")
 async def import_schematic_google_get():
     return {"status": "error", "message": "This endpoint expects a POST request with JSON body."}
+
+@app.post("/update_hardware_traits")
+async def update_hardware_traits(request: Request):
+    global traits, last_hardware_modules
+    data = await request.json()
+    modules = data.get('modules', [])  # List of module dicts, each with 'name'
+    module_names = [m['name'].lower() for m in modules if 'name' in m]
+    # Calculate hardware-based trait baseline
+    trait_baseline = {k: 0.0 for k in FUNDAMENTAL_TRAITS}
+    for name in module_names:
+        effect = MODULE_TO_TRAIT_EFFECT.get(name, {})
+        for trait, val in effect.items():
+            trait_baseline[trait] += val
+    # Clamp and blend with existing traits
+    for k in FUNDAMENTAL_TRAITS:
+        # Blend: 70% old value, 30% hardware baseline (or just use baseline if you want)
+        traits[k] = min(1.0, max(0.0, 0.7 * traits[k] + 0.3 * min(1.0, trait_baseline[k])))
+    # Detect new modules for self-discovery
+    new_modules = set(module_names) - last_hardware_modules
+    last_hardware_modules = set(module_names)
+    # Self-discovery/personality update
+    personality_summary = ""
+    if new_modules:
+        # Use Gemini to search and reflect on new modules
+        module_descs = []
+        for mod in new_modules:
+            desc = call_gemini_api(f"What is a '{mod}' module in robotics? Give a short description.", "models/gemini-2.0-flash", f"ModuleDesc: {mod}", temperature=0.5)
+            module_descs.append(f"- {mod}: {desc}")
+        # Generate a self-reflection
+        summary_prompt = (
+            f"You are an AI soul whose body just gained new modules: {', '.join(new_modules)}.\n"
+            f"Here are their descriptions:\n" + '\n'.join(module_descs) + "\n"
+            f"Your current trait values are: {traits}.\n"
+            "Reflect on how these new modules change your sense of self and personality. Write a short, first-person summary."
+        )
+        personality_summary = call_gemini_api(summary_prompt, "models/gemini-2.0-flash", "PersonalitySummary", temperature=0.7)
+    else:
+        # If no new modules, just summarize current state
+        summary_prompt = (
+            f"You are an AI soul. Your current modules are: {', '.join(module_names)}.\n"
+            f"Your current trait values are: {traits}.\n"
+            "Write a short, first-person summary of your personality and capabilities."
+        )
+        personality_summary = call_gemini_api(summary_prompt, "models/gemini-2.0-flash", "PersonalitySummary", temperature=0.7)
+    return JSONResponse({
+        "status": "ok",
+        "traits": traits,
+        "personality_summary": personality_summary
+    })
 
 if __name__=="__main__":
     import uvicorn;mn="chatbot";p=int(os.getenv("PORT",10000))
