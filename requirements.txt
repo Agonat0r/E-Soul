@@ -9,3 +9,6 @@ plotly
 python-multipart
 tensorflow
 pyserial
+google-api-core
+google-api-python-client
+h5py

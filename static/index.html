@@ -134,6 +134,24 @@
           <div id="module-library" style="height:500px;overflow-y:auto;border:1px solid var(--panel-alt);border-radius:8px;background:var(--panel);padding:10px;"></div>
         </div>
         <div style="flex:1;min-width:400px;">
+          <!-- Prototyping Section -->
+          <div id="prototyping-section" style="margin-bottom:30px;">
+            <h3>Prototyping Canvas</h3>
+            <label for="mcu-board-select"><b>Select Microcontroller:</b></label>
+            <select id="mcu-board-select" style="margin-left:10px;padding:6px 12px;border-radius:6px;">
+              <option value="arduino">Arduino Uno</option>
+              <option value="esp32">ESP32 DevKit</option>
+              <option value="stm32">STM32 Blue Pill</option>
+              <option value="pico">Raspberry Pi Pico</option>
+            </select>
+            <div id="proto-canvas-container" style="position:relative;width:100%;height:350px;background:var(--panel-alt);border:2px solid var(--accent2);border-radius:10px;margin-top:15px;overflow:hidden;">
+              <svg id="proto-wires" width="100%" height="350" style="position:absolute;left:0;top:0;z-index:1;"></svg>
+              <div id="proto-mcu" style="position:absolute;left:40px;top:80px;z-index:2;"></div>
+              <div id="proto-modules" style="position:absolute;left:200px;top:20px;z-index:2;"></div>
+            </div>
+            <div id="proto-connection-data" style="margin-top:10px;background:var(--panel);padding:10px;border-radius:6px;min-height:40px;font-family:monospace;font-size:0.95em;"></div>
+          </div>
+          <!-- Existing robot canvas and schematic upload below -->
           <div id="robot-canvas" style="width:100%;height:400px;border:2px dashed var(--accent2);border-radius:10px;background:var(--panel-alt);position:relative;overflow:hidden;"></div>
           <button id="toggle-3d-btn" style="margin-top:10px;padding:8px 18px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer;">Switch to 3D View (Coming Soon)</button>
           <div style="margin-top:20px;">
@@ -563,6 +581,108 @@
     };
     // Initialize with default tab
     showTab('traits-view');
+
+    // --- Prototyping Canvas Logic ---
+    const MCU_PINOUTS = {
+      arduino: ["D2","D3","D4","D5","D6","D7","D8","D9","D10","D11","D12","D13","A0","A1","A2","A3","A4","A5","5V","GND"],
+      esp32: ["GPIO2","GPIO4","GPIO5","GPIO12","GPIO13","GPIO14","GPIO15","GPIO16","GPIO17","GPIO18","GPIO19","GPIO21","GPIO22","GPIO23","3V3","GND"],
+      stm32: ["PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","PB10","PB11","PB12","PB13","PB14","PB15","3V3","GND"],
+      pico: ["GP0","GP1","GP2","GP3","GP4","GP5","GP6","GP7","GP8","GP9","GP10","GP11","GP12","GP13","GP14","GP15","3V3","GND"]
+    };
+    const MODULE_PINOUTS = {
+      "Ultrasonic Sensor": ["VCC","GND","Trig","Echo"],
+      "Servo Motor": ["VCC","GND","Signal"],
+      "LED": ["Anode","Cathode"],
+      "Buzzer": ["+","-"],
+      "Camera": ["VCC","GND","SDA","SCL"],
+      "Temperature Sensor": ["VCC","GND","Signal"]
+    };
+    let protoModules = [];
+    let protoConnections = [];
+    let protoSelectedPin = null;
+    function renderProtoMCU() {
+      const mcuType = document.getElementById('mcu-board-select').value;
+      const pins = MCU_PINOUTS[mcuType] || [];
+      const mcuDiv = document.getElementById('proto-mcu');
+      mcuDiv.innerHTML = `<div style='width:120px;height:180px;background:var(--panel);border:2px solid var(--accent);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;'><b style='margin-bottom:8px;'>${mcuType.toUpperCase()}</b>${pins.map((p,i)=>`<div class='mcu-pin' data-pin='${p}' style='margin:2px 0;padding:2px 8px;border-radius:6px;background:var(--panel-alt);border:1px solid var(--accent2);cursor:pointer;font-size:0.95em;' onclick='protoPinClick("mcu","${p}")'>${p}</div>`).join('')}</div>`;
+    }
+    function renderProtoModules() {
+      const modDiv = document.getElementById('proto-modules');
+      modDiv.innerHTML = '';
+      protoModules.forEach((mod, idx) => {
+        const pins = MODULE_PINOUTS[mod.name] || ["VCC","GND","Signal"];
+        const modEl = document.createElement('div');
+        modEl.className = 'proto-module';
+        modEl.style = `position:absolute;left:${mod.x}px;top:${mod.y}px;width:110px;background:var(--panel);border:2px solid var(--accent2);border-radius:10px;padding:8px;z-index:2;`;
+        modEl.innerHTML = `<b>${mod.name}</b><br>${pins.map(p=>`<div class='mod-pin' data-mod='${idx}' data-pin='${p}' style='margin:2px 0;padding:2px 8px;border-radius:6px;background:var(--panel-alt);border:1px solid var(--accent2);cursor:pointer;font-size:0.95em;' onclick='protoPinClick("mod",${idx},"${p}")'>${p}</div>`).join('')}`;
+        modDiv.appendChild(modEl);
+      });
+    }
+    window.protoPinClick = function(type, modIdxOrPin, pinName) {
+      if (!protoSelectedPin) {
+        protoSelectedPin = {type, modIdxOrPin, pinName};
+      } else {
+        // Connect if one is mcu and one is mod
+        if ((protoSelectedPin.type === 'mcu' && type === 'mod') || (protoSelectedPin.type === 'mod' && type === 'mcu')) {
+          let from, to;
+          if (protoSelectedPin.type === 'mod') {
+            from = {mod: protoSelectedPin.modIdxOrPin, pin: protoSelectedPin.pinName};
+            to = {mcu: modIdxOrPin, pin: pinName};
+          } else {
+            from = {mod: modIdxOrPin, pin: pinName};
+            to = {mcu: protoSelectedPin.modIdxOrPin, pin: protoSelectedPin.pinName};
+          }
+          protoConnections.push({from, to});
+          protoSelectedPin = null;
+          renderProtoWires();
+          renderProtoConnectionData();
+        } else {
+          protoSelectedPin = {type, modIdxOrPin, pinName};
+        }
+      }
+    };
+    function renderProtoWires() {
+      const svg = document.getElementById('proto-wires');
+      svg.innerHTML = '';
+      // For demo, just draw straight lines between module and mcu (not accurate positions)
+      protoConnections.forEach(conn => {
+        // Find module and mcu pin positions
+        // For now, use rough positions
+        let x1 = 200, y1 = 40 + (conn.from.mod !== undefined ? conn.from.mod*60 : 0) + (conn.from.pin === 'VCC' ? 10 : conn.from.pin === 'GND' ? 30 : 50);
+        let x2 = 80, y2 = 100 + (MCU_PINOUTS[document.getElementById('mcu-board-select').value].indexOf(conn.to.pin))*8;
+        svg.innerHTML += `<line x1='${x1}' y1='${y1}' x2='${x2}' y2='${y2}' stroke='var(--accent)' stroke-width='3' marker-end='url(#arrowhead)'/>`;
+      });
+      svg.innerHTML += `<defs><marker id='arrowhead' markerWidth='8' markerHeight='8' refX='4' refY='4' orient='auto' markerUnits='strokeWidth'><path d='M0,0 L8,4 L0,8 L2,4 z' fill='var(--accent)'/></marker></defs>`;
+    }
+    function renderProtoConnectionData() {
+      const div = document.getElementById('proto-connection-data');
+      if (protoConnections.length === 0) { div.textContent = 'No connections yet.'; return; }
+      div.innerHTML = protoConnections.map(conn => {
+        let modName = protoModules[conn.from.mod]?.name || '?';
+        return `${modName} [${conn.from.pin}] → MCU [${conn.to.pin}]`;
+      }).join('<br>');
+    }
+    document.getElementById('mcu-board-select').onchange = function() {
+      renderProtoMCU();
+      renderProtoWires();
+      renderProtoConnectionData();
+    };
+    // Drag modules from library to prototyping canvas
+    const protoCanvas = document.getElementById('proto-canvas-container');
+    protoCanvas.ondragover = e => { e.preventDefault(); };
+    protoCanvas.ondrop = e => {
+      e.preventDefault();
+      const moduleName = e.dataTransfer.getData('text/plain');
+      if (!moduleName) return;
+      protoModules.push({name: moduleName, x: e.offsetX, y: e.offsetY});
+      renderProtoModules();
+      renderProtoWires();
+      renderProtoConnectionData();
+    };
+    renderProtoMCU();
+    renderProtoModules();
+    renderProtoWires();
+    renderProtoConnectionData();
   </script>
 </body>
 </html>
