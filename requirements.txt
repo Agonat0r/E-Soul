@@ -1,1 +1,1 @@
-# Empty, uses only built-in Python modules
+google-generativeai
