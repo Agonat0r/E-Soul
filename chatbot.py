@@ -151,20 +151,8 @@ async def set_api_keys(request: Request):
 async def soul_simulation():
     global traits, history, conversation_history, trait_first_seen
     step = 0
+    initial_trait_set = set(initial_traits.keys())
     while True:
-        # Randomize probabilities for this step
-        add_prob = random.uniform(0.01, 0.15)  # Random chance for adding a trait
-        remove_prob = random.uniform(0.01, 0.10)  # Random chance for removing a trait
-        # Randomly add a new trait
-        if random.random() < add_prob:
-            new_trait = f"trait_{random.randint(1, 1000)}"
-            if new_trait not in traits:
-                traits[new_trait] = random.random()
-                trait_first_seen[new_trait] = step
-        # Randomly remove a trait (but keep at least 2)
-        if len(traits) > 2 and random.random() < remove_prob:
-            to_remove = random.choice(list(traits.keys()))
-            del traits[to_remove]
         # Evolve all traits (random walk, no target)
         for k in traits:
             traits[k] = min(1.0, max(0.0, traits[k] + random.uniform(-0.05, 0.05)))
@@ -195,7 +183,6 @@ async def soul_simulation():
                             cl = km.fit_predict(X).tolist()
                         except Exception as ek:
                             print(f"S{step} KM err:{ek}")
-        
         ctna = list(traits.keys())
         ftc = {}
         cfs = {}
@@ -216,15 +203,52 @@ async def soul_simulation():
                     ftc[n] = DEFAULT_TRAIT_COLOR
         ftc = {n: ftc.get(n, DEFAULT_TRAIT_COLOR) for n in ctna}
 
-        rt = "Ref pend..."
-        sn = "Sys"
-        ctfr = traits.copy()
-        rt = generate_gemini_reflection(ctfr)
+        rt = generate_gemini_reflection(traits.copy())
         sn = "AI2(Gemini)"
         conversation_history.append({"speaker": sn, "text": rt, "timestamp": datetime.now(timezone.utc).isoformat()})
+        # Self-dialogue: Gemini replies to itself
+        try:
+            model = genai.GenerativeModel("models/gemini-2.0-flash")
+            reply_prompt = (
+                "You are continuing a conversation with yourself. Here is your previous message:\n" + rt +
+                "\nReply to yourself, as if you are reflecting further or challenging your own thoughts."
+            )
+            reply_response = model.generate_content(reply_prompt)
+            reply_text = reply_response.text.strip() if hasattr(reply_response, 'text') else str(reply_response)
+            conversation_history.append({"speaker": "AI2-Reply (Gemini)", "text": reply_text, "timestamp": datetime.now(timezone.utc).isoformat()})
+        except Exception as e:
+            print(f"Gemini self-dialogue error: {e}")
         if len(conversation_history) > 100:
             conversation_history = conversation_history[-100:]
-        
+
+        # --- AI-driven trait evolution ---
+        ai_trait_prompt = (
+            "Based on your current state and thoughts, invent a new trait name (one word, e.g., 'despair', 'entropy', 'hope') that could describe your soul's evolution. "
+            "If you feel a trait is no longer relevant, name it for removal. Respond in this format:\n"
+            "New trait: <trait_name>\nRemove trait: <trait_name or 'none'>"
+        )
+        try:
+            model = genai.GenerativeModel("models/gemini-2.0-flash")
+            ai_trait_response = model.generate_content(ai_trait_prompt + "\n" + rt)
+            ai_trait_text = ai_trait_response.text.strip() if hasattr(ai_trait_response, 'text') else str(ai_trait_response)
+            # Parse for 'New trait:' and 'Remove trait:'
+            new_trait = None
+            remove_trait = None
+            for line in ai_trait_text.splitlines():
+                if line.lower().startswith("new trait:"):
+                    new_trait = line.split(":", 1)[1].strip()
+                if line.lower().startswith("remove trait:"):
+                    remove_trait = line.split(":", 1)[1].strip()
+            # Add new trait if valid and not present
+            if new_trait and new_trait.lower() != 'none' and new_trait not in traits:
+                traits[new_trait] = random.random()
+                trait_first_seen[new_trait] = step
+            # Remove trait if valid, not an initial trait, and present
+            if remove_trait and remove_trait.lower() != 'none' and remove_trait in traits and remove_trait not in initial_trait_set:
+                del traits[remove_trait]
+        except Exception as e:
+            print(f"AI trait evolution error: {e}")
+
         data_to_send = {"traits": traits, "trait_names": ctna, "history": history, "step": step, "pca_points": pcp, "clusters": cl,
                       "all_traits_pca_order": aptl, "reflection": rt, "conversation_history": conversation_history,
                       "trait_first_seen": trait_first_seen, "trait_colors": ftc}
