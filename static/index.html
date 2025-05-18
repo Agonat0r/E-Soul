@@ -15,178 +15,119 @@
       --table-header: #e9eef3;
       --table-row: #f6f8fa;
       --dominant: #e3f2fd;
-      --msg-ai1: #e3f2fd;
-      --msg-ai2: #fce4ec;
+      --msg-ai1: #e3f2fd; /* Used for AI (Gemini) */
+      --msg-ai2: #fce4ec; /* Was for AI2, can be repurposed or kept for differentiation if you add another AI */
+      --msg-selfreply: #e0f2f1; /* Color for AI-SelfReply */
       --msg-meta: #7b8a99;
     }
     body.soft-blue {
-      --bg: #eaf3fb;
-      --fg: #223344;
-      --panel: #f7fbff;
-      --panel-alt: #dbeafe;
-      --accent: #4a90e2;
-      --accent2: #b2c7e1;
-      --table-header: #dbeafe;
-      --table-row: #eaf3fb;
-      --dominant: #b3e5fc;
-      --msg-ai1: #b3e5fc;
-      --msg-ai2: #e1bee7;
-      --msg-meta: #607d8b;
+      --bg: #eaf3fb; --fg: #223344; --panel: #f7fbff; --panel-alt: #dbeafe;
+      --accent: #4a90e2; --accent2: #b2c7e1; --table-header: #dbeafe; --table-row: #eaf3fb;
+      --dominant: #b3e5fc; --msg-ai1: #b3e5fc; --msg-ai2: #e1bee7; --msg-selfreply: #c8e6c9; --msg-meta: #607d8b;
     }
     body.solarized {
-      --bg: #fdf6e3;
-      --fg: #657b83;
-      --panel: #f5eecb;
-      --panel-alt: #eee8d5;
-      --accent: #268bd2;
-      --accent2: #b58900;
-      --table-header: #eee8d5;
-      --table-row: #fdf6e3;
-      --dominant: #b58900;
-      --msg-ai1: #eee8d5;
-      --msg-ai2: #f5eecb;
-      --msg-meta: #657b83;
+      --bg: #fdf6e3; --fg: #657b83; --panel: #f5eecb; --panel-alt: #eee8d5;
+      --accent: #268bd2; --accent2: #b58900; --table-header: #eee8d5; --table-row: #fdf6e3;
+      --dominant: #b58900; --msg-ai1: #eee8d5; --msg-ai2: #f5eecb; --msg-selfreply: #d0e0d0; --msg-meta: #657b83;
     }
     body.pastel {
-      --bg: #f8f7fa;
-      --fg: #4b3f72;
-      --panel: #f3e8ff;
-      --panel-alt: #e0c3fc;
-      --accent: #a3cef1;
-      --accent2: #f9c6c9;
-      --table-header: #e0c3fc;
-      --table-row: #f8f7fa;
-      --dominant: #f9c6c9;
-      --msg-ai1: #e0c3fc;
-      --msg-ai2: #f9c6c9;
-      --msg-meta: #4b3f72;
+      --bg: #f8f7fa; --fg: #4b3f72; --panel: #f3e8ff; --panel-alt: #e0c3fc;
+      --accent: #a3cef1; --accent2: #f9c6c9; --table-header: #e0c3fc; --table-row: #f8f7fa;
+      --dominant: #f9c6c9; --msg-ai1: #e0c3fc; --msg-ai2: #f9c6c9; --msg-selfreply: #d1c4e9; --msg-meta: #4b3f72;
     }
     body {
-      background: var(--bg);
-      color: var(--fg);
-      font-family: sans-serif;
-      transition: background 0.3s, color 0.3s;
+      background: var(--bg); color: var(--fg); font-family: sans-serif;
+      transition: background 0.3s, color 0.3s; margin: 0; padding: 20px;
     }
-    .tabs { display: flex; margin-bottom: 20px; }
+    .tabs { display: flex; margin-bottom: 20px; flex-wrap: wrap; }
     .tab {
-      padding: 12px 28px;
-      background: var(--panel-alt);
-      color: var(--fg);
-      border-radius: 8px 8px 0 0;
-      margin-right: 6px;
-      cursor: pointer;
-      font-weight: 500;
-      border: none;
-      outline: none;
-      transition: background 0.2s, color 0.2s;
+      padding: 12px 28px; background: var(--panel-alt); color: var(--fg);
+      border-radius: 8px 8px 0 0; margin-right: 6px; margin-bottom: 6px; cursor: pointer;
+      font-weight: 500; border: none; outline: none; transition: background 0.2s, color 0.2s;
     }
-    .tab.active {
-      background: var(--panel);
-      color: var(--accent);
-    }
-    .tab-content { display: none; }
+    .tab.active { background: var(--panel); color: var(--accent); }
+    .tab-content { display: none; padding: 15px; background: var(--panel); border-radius: 0 8px 8px 8px; box-shadow: 0 2px 8px #0002; }
     .tab-content.active { display: block; }
-    #barplot { width:900px; height:350px; margin-bottom: 30px; }
-    #timeline { width:900px; height:300px; margin-bottom: 30px; }
+    #barplot, #timeline-chart { width:100%; max-width:900px; height:350px; margin-bottom: 30px; }
     #trait-table, #discovered-table {
-      background: var(--panel);
-      color: var(--fg);
-      font-family: 'Courier New', Courier, monospace;
-      border-radius: 8px;
-      max-width: 900px;
-      margin: 0 auto 30px auto;
-      border-collapse: collapse;
-      width: 900px;
-      box-shadow: 0 2px 8px #0002;
+      background: var(--panel); color: var(--fg); font-family: 'Courier New', Courier, monospace;
+      border-radius: 8px; max-width: 900px; margin: 0 auto 30px auto;
+      border-collapse: collapse; width: 100%; box-shadow: 0 2px 8px #0002;
     }
     #trait-table th, #trait-table td, #discovered-table th, #discovered-table td {
-      border: 1px solid var(--panel-alt);
-      padding: 8px 12px;
-      text-align: left;
+      border: 1px solid var(--panel-alt); padding: 8px 12px; text-align: left;
     }
-    #trait-table th, #discovered-table th { background: var(--table-header); color: var(--accent); }
+    #trait-table th, #discovered-table th { background: var(--table-header); color: var(--accent); font-weight: bold; }
     #trait-table tr.dominant { background: var(--dominant); }
     #terminal {
-      background: var(--panel);
-      color: var(--accent);
-      font-family: 'Courier New', Courier, monospace;
-      padding: 20px;
-      border-radius: 8px;
-      min-height: 120px;
-      max-width: 900px;
-      margin: 0 auto;
-      white-space: pre-line;
-      word-break: break-word;
-      overflow-wrap: break-word;
-      box-shadow: 0 2px 8px #0002;
+      background: var(--panel); color: var(--fg); /* Changed from --accent for better readability */
+      font-family: 'Courier New', Courier, monospace; padding: 20px; border-radius: 8px;
+      min-height: 120px; max-width: 900px; margin: 0 auto; white-space: pre-wrap; /* Changed from pre-line */
+      word-break: break-word; overflow-wrap: break-word; box-shadow: 0 2px 8px #0002;
+      border: 1px solid var(--panel-alt);
     }
-    #conversation {
-      background: var(--panel);
-      color: var(--fg);
-      font-family: 'Courier New', Courier, monospace;
-      border-radius: 8px;
-      max-width: 900px;
-      margin: 0 auto 30px auto;
-      padding: 20px;
-      min-height: 200px;
-      box-shadow: 0 2px 8px #0002;
+    #conversation-log { /* Renamed from #conversation to avoid ID clash with tab content */
+      background: var(--panel); color: var(--fg); font-family: 'Courier New', Courier, monospace;
+      border-radius: 8px; max-width: 900px; margin: 0 auto 30px auto;
+      padding: 20px; min-height: 200px; box-shadow: 0 2px 8px #0002;
+      border: 1px solid var(--panel-alt); max-height: 500px; overflow-y: auto;
     }
     .msg {
-      margin-bottom: 18px;
-      padding: 10px 16px;
-      border-radius: 6px;
-      background: var(--panel-alt);
-      color: var(--fg);
-      max-width: 80%;
-      box-shadow: 0 1px 4px #0001;
+      margin-bottom: 18px; padding: 10px 16px; border-radius: 6px;
+      background: var(--panel-alt); color: var(--fg); max-width: 85%;
+      box-shadow: 0 1px 4px #0001; line-height: 1.4;
     }
-    .msg.ai1 { background: var(--msg-ai1); color: var(--accent); align-self: flex-start; }
-    .msg.ai2 { background: var(--msg-ai2); color: var(--fg); align-self: flex-end; }
-    .msg .meta { font-size: 0.9em; color: var(--msg-meta); margin-bottom: 4px; }
-    .msg .text { white-space: pre-line; }
-    .theme-select {
-      margin: 20px 0 0 0;
-      padding: 10px 16px;
-      font-size: 1em;
-      border-radius: 6px;
-      border: 1px solid var(--panel-alt);
-      background: var(--panel);
-      color: var(--fg);
-      outline: none;
+    .msg.ai { background: var(--msg-ai1); color: var(--fg); align-self: flex-start; } /* Generic AI */
+    .msg.ai-selfreply { background: var(--msg-selfreply); color: var(--fg); align-self: flex-start; margin-left: 20px; }
+    .msg .meta { font-size: 0.85em; color: var(--msg-meta); margin-bottom: 4px; }
+    .msg .text { white-space: pre-wrap; /* Changed from pre-line for better formatting */ }
+    .theme-select, input[type="password"], input[type="text"], textarea, button {
+      margin-bottom:12px;padding:10px;border-radius:6px;border:1px solid var(--panel-alt);
+      background:var(--panel);color:var(--fg); font-size: 1em; box-sizing: border-box;
     }
+    button { background:var(--accent);color:#fff;border:none;cursor:pointer; }
+    input[type="password"], input[type="text"], textarea { width: calc(100% - 22px); }
+    .container { max-width: 900px; margin: 0 auto; }
   </style>
 </head>
 <body>
-  <div id="api-key-setup" style="max-width:900px;margin:40px auto 30px auto;padding:30px 30px 20px 30px;background:var(--panel);border-radius:10px;box-shadow:0 2px 8px #0002;">
-    <h2>Enter API Keys to Begin</h2>
-    <label for="hf-key"><b>Hugging Face API Key:</b></label><br>
-    <input id="hf-key" type="password" style="width:100%;margin-bottom:12px;padding:10px;border-radius:6px;border:1px solid var(--panel-alt);background:var(--panel);color:var(--fg);"><br>
+  <div id="api-key-setup" class="container" style="margin-top:40px;margin-bottom:30px;padding:30px;background:var(--panel);border-radius:10px;box-shadow:0 2px 8px #0002;">
+    <h2>Enter Gemini API Key to Begin</h2>
+    <p>Hugging Face functionality is currently not used by the backend.</p>
     <label for="gemini-key"><b>Gemini API Key:</b></label><br>
-    <input id="gemini-key" type="password" style="width:100%;margin-bottom:12px;padding:10px;border-radius:6px;border:1px solid var(--panel-alt);background:var(--panel);color:var(--fg);"><br>
-    <button id="set-keys-btn" style="padding:10px 24px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-size:1em;">Set API Keys</button>
-    <span id="api-key-status" style="margin-left:20px;"></span>
+    <input id="gemini-key" type="password" placeholder="Your Gemini API Key"><br>
+    <button id="set-keys-btn">Set API Key & Start</button>
+    <span id="api-key-status" style="margin-left:20px; font-weight: bold;"></span>
   </div>
+
   <div id="main-dashboard" style="display:none;">
-    <h1>Soul Trait Evolution (Live)</h1>
-    <div class="tabs">
-      <button class="tab active" onclick="showTab('traits')">Traits Table</button>
-      <button class="tab" onclick="showTab('timeline')">Timeline</button>
-      <button class="tab" onclick="showTab('conversation')">Conversation</button>
-      <button class="tab" onclick="showTab('customization')">Customization</button>
+    <div class="container">
+      <h1>Soul Trait Evolution (Live)</h1>
     </div>
-    <div id="traits" class="tab-content active">
+    <div class="tabs container">
+      <button class="tab active" onclick="showTab('traits-view')">Traits</button>
+      <button class="tab" onclick="showTab('timeline-view')">Timeline</button>
+      <button class="tab" onclick="showTab('conversation-view')">Conversation</button>
+      <button class="tab" onclick="showTab('customization-view')">Customization</button>
+    </div>
+
+    <div id="traits-view" class="tab-content active container">
       <div id="barplot"></div>
+      <h3 style="margin-top: 30px;">Current Trait Values</h3>
       <table id="trait-table"></table>
+      <h3 style="margin-top: 30px;">Discovered Traits</h3>
       <table id="discovered-table"></table>
+      <h3 style="margin-top: 30px;">Interpretation</h3>
       <div id="terminal">Waiting for data...</div>
     </div>
-    <div id="timeline" class="tab-content">
-      <div id="timeline"></div>
-    </div>
-    <div id="conversation" class="tab-content">
-      <div id="conversation"></div>
-    </div>
-    <div id="customization" class="tab-content">
+
+    <div id="timeline-view" class="tab-content container">
+      <div id="timeline-chart"></div> </div>
+
+    <div id="conversation-view" class="tab-content container">
+      <div id="conversation-log"></div> </div>
+
+    <div id="customization-view" class="tab-content container">
       <label for="theme-select"><b>Choose a theme:</b></label>
       <select id="theme-select" class="theme-select">
         <option value="">Light (Default)</option>
@@ -195,199 +136,314 @@
         <option value="pastel">Pastel</option>
       </select>
       <hr style="margin: 30px 0;">
-      <label for="prompt-box"><b>Custom Reflection Prompt:</b></label><br>
-      <textarea id="prompt-box" rows="4" style="width: 100%; max-width: 900px; border-radius: 6px; border: 1px solid var(--panel-alt); background: var(--panel); color: var(--fg); padding: 10px; margin-top: 8px;"></textarea><br>
-      <button id="set-prompt-btn" style="margin-top: 10px; padding: 10px 20px; border-radius: 6px; background: var(--accent); color: #fff; border: none; cursor: pointer; font-size: 1em;">Set Prompt</button>
-      <span id="prompt-status" style="margin-left: 20px; color: var(--accent);"></span>
+      <label for="prompt-box"><b>Custom Reflection Prompt (Optional):</b></label><br>
+      <textarea id="prompt-box" rows="4" placeholder="Enter your custom prompt for AI reflections here..."></textarea><br>
+      <button id="set-prompt-btn">Set Custom Prompt</button>
+      <span id="prompt-status" style="margin-left: 20px;"></span>
     </div>
   </div>
+
   <script>
-    // API Key Setup Logic
+    const GEMINI_MODEL_USED_BY_BACKEND = "models/gemini-2.0-flash"; // For display/info if needed
+
     document.getElementById('set-keys-btn').onclick = async function() {
-      const hf = document.getElementById('hf-key').value.trim();
-      const gem = document.getElementById('gemini-key').value.trim();
-      const status = document.getElementById('api-key-status');
-      status.textContent = 'Validating...';
-      status.style.color = 'var(--accent)';
+      const geminiKey = document.getElementById('gemini-key').value.trim();
+      const statusSpan = document.getElementById('api-key-status');
+      
+      if (!geminiKey) {
+        statusSpan.textContent = 'Error: Gemini API Key is required.';
+        statusSpan.style.color = 'red';
+        return;
+      }
+
+      statusSpan.textContent = 'Validating API Key...';
+      statusSpan.style.color = 'var(--accent)';
+      
       try {
-        const resp = await fetch('/set_api_keys', {
+        const response = await fetch('/set_api_keys', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ hf_api_key: hf, gemini_api_key: gem })
+          // Backend only expects gemini_api_key based on latest Python script
+          body: JSON.stringify({ gemini_api_key: geminiKey }) 
         });
-        const data = await resp.json();
-        if (resp.ok && data.status === 'ok') {
-          status.textContent = 'API keys accepted!';
-          status.style.color = 'green';
+        const responseData = await response.json();
+
+        if (response.ok && responseData.status === 'ok') {
+          statusSpan.textContent = 'Gemini API Key Accepted! Starting simulation...';
+          statusSpan.style.color = 'green';
           document.getElementById('api-key-setup').style.display = 'none';
-          document.getElementById('main-dashboard').style.display = '';
-          // Now connect WebSocket and start dashboard
-          window.ws = new WebSocket("wss://" + window.location.host + "/ws");
-          ws.onmessage = ws_onmessage_handler;
+          document.getElementById('main-dashboard').style.display = 'block'; // Show all dashboard content
+          connectWebSocket(); // Connect WebSocket only after successful validation
         } else {
-          let msg = 'Error: ';
-          if (data.errors) {
-            msg += Object.values(data.errors).join(' ');
+          let errorMsg = 'Error: ';
+          if (responseData.errors && responseData.errors.gemini_api_key) {
+            errorMsg += responseData.errors.gemini_api_key;
+          } else if (responseData.message) {
+            errorMsg += responseData.message;
           } else {
-            msg += 'Unknown error.';
+            errorMsg += `Server responded with status ${response.status}. Check server logs.`;
           }
-          status.textContent = msg;
-          status.style.color = 'red';
+          statusSpan.textContent = errorMsg;
+          statusSpan.style.color = 'red';
+          console.error("API Key validation failed:", responseData);
         }
       } catch (e) {
-        status.textContent = 'Failed to validate API keys.';
-        status.style.color = 'red';
+        statusSpan.textContent = 'Error: Failed to send API key to server. Check network or server status.';
+        statusSpan.style.color = 'red';
+        console.error("Fetch error for /set_api_keys:", e);
       }
     };
-    // Only connect WebSocket after API keys are set
-    let ws;
-    function ws_onmessage_handler(event) {
-      let data = JSON.parse(event.data);
-      let traits = data.traits;
-      traitNames = data.trait_names;
-      history = data.history;
-      traitFirstSeen = data.trait_first_seen;
-      // Dominance calculation
-      let sum = Object.values(traits).reduce((a, b) => a + b, 0) || 1;
-      let dominance = {};
-      for (let k of Object.keys(traits)) dominance[k] = traits[k] / sum * 100;
-      let dominantTrait = Object.keys(dominance).reduce((a, b) => dominance[a] > dominance[b] ? a : b);
-      // Update all visualizations
-      updateBarPlot(traits, dominance);
-      updateTraitTable(traits, dominance, dominantTrait);
-      updateDiscoveredTable(traitFirstSeen, traits, data.step);
-      updateTimeline(history, traitNames);
-      document.getElementById('terminal').textContent = interpret(traits, dominance, dominantTrait);
-      updateConversation(data.conversation_history);
-    }
-    let history = [];
-    let traitNames = [];
-    let traitFirstSeen = {};
 
-    function showTab(tab) {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      document.querySelectorAll('.tab').forEach(t => {
-        if (t.textContent.replace(/\s+/g, '').toLowerCase().includes(tab)) {
-          t.classList.add('active');
-        }
-      });
-      document.getElementById(tab).classList.add('active');
+    let ws; // WebSocket instance
+
+    function connectWebSocket() {
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
+      ws.onopen = () => {
+        console.log('WebSocket connected!');
+        document.getElementById('terminal').textContent = 'Connection established. Waiting for initial soul data...';
+      };
+      ws.onmessage = ws_onmessage_handler; // Defined below
+      ws.onclose = (event) => {
+        console.log('WebSocket disconnected:', event.reason || 'No reason provided', 'Code:', event.code);
+        document.getElementById('terminal').textContent = `WebSocket disconnected. Code: ${event.code}, Reason: ${event.reason || 'N/A'}. Attempting to reconnect in 7s...`;
+        // Consider a more robust reconnect strategy if needed
+        setTimeout(() => { 
+            // Only try to reconnect if API keys were successfully set initially
+            if (document.getElementById('api-key-setup').style.display === 'none') {
+                console.log("Attempting to reconnect WebSocket...");
+                connectWebSocket(); // Try to reconnect
+            }
+        }, 7000);
+      };
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        document.getElementById('terminal').textContent = 'WebSocket connection error. See browser console.';
+      };
     }
+
+    // Global variables to store data for charts if needed for redraws
+    let currentTraitData = {};
+    let currentHistoryData = [];
+    let currentTraitNames = [];
+    let currentTraitFirstSeen = {};
+    let currentTraitColors = {}; // Store trait colors
+
+    function ws_onmessage_handler(event) {
+      try {
+        let data = JSON.parse(event.data);
+        console.log("Received data:", data); // Log received data to browser console
+
+        // Store data globally for potential redraws or access by other functions
+        currentTraitData = data.traits || {};
+        currentHistoryData = data.history || [];
+        currentTraitNames = data.trait_names || []; // Names of currently active traits
+        currentTraitFirstSeen = data.trait_first_seen || {};
+        currentTraitColors = data.trait_colors || {}; // Get trait colors
+
+        // Dominance calculation
+        let sum = Object.values(currentTraitData).reduce((a, b) => a + b, 0) || 1;
+        let dominance = {};
+        for (let k of Object.keys(currentTraitData)) {
+          dominance[k] = (currentTraitData[k] / sum) * 100;
+        }
+        let dominantTrait = Object.keys(dominance).length > 0 
+            ? Object.keys(dominance).reduce((a, b) => dominance[a] > dominance[b] ? a : b) 
+            : 'N/A';
+        
+        // Update all visualizations
+        updateBarPlot(currentTraitData, dominance, currentTraitColors);
+        updateTraitTable(currentTraitData, dominance, dominantTrait, currentTraitColors);
+        updateDiscoveredTable(currentTraitFirstSeen, currentTraitData, data.step, currentTraitColors);
+        // For timeline, use all_traits_pca_order if available and X had data, else currentTraitNames
+        let timelineTraitOrder = (data.all_traits_pca_order && data.all_traits_pca_order.length > 0) ? data.all_traits_pca_order : currentTraitNames;
+        updateTimeline(currentHistoryData, timelineTraitOrder, currentTraitColors); 
+        document.getElementById('terminal').textContent = interpret(currentTraitData, dominance, dominantTrait);
+        updateConversation(data.conversation_history || []);
+
+      } catch (e) {
+        console.error("Error processing WebSocket message:", e, "Raw data:", event.data);
+        document.getElementById('terminal').textContent = "Error processing data from server. See browser console.";
+      }
+    }
+
+    function showTab(tabId) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none'); // Hide all
+      
+      // Find tab button that controls this tabId (more robust)
+      const tabButton = Array.from(document.querySelectorAll('.tab')).find(
+        (btn) => btn.getAttribute('onclick').includes(`'${tabId}'`)
+      );
+      if (tabButton) tabButton.classList.add('active');
+      
+      const activeTabContent = document.getElementById(tabId);
+      if (activeTabContent) activeTabContent.style.display = 'block'; // Show active
+    }
+    // Initialize default tab
+    showTab('traits-view');
+
 
     document.getElementById('theme-select').addEventListener('change', function() {
       document.body.className = this.value;
+      // Redraw plots if they are visible, as colors might need to update
+      if (document.getElementById('traits-view').style.display === 'block') {
+        updateBarPlot(currentTraitData, {}, currentTraitColors); // Recalculate dominance inside if needed
+      }
+      if (document.getElementById('timeline-view').style.display === 'block') {
+         let timelineTraitOrder = (currentTraitData.all_traits_pca_order && currentTraitData.all_traits_pca_order.length > 0) ? currentTraitData.all_traits_pca_order : currentTraitNames;
+        updateTimeline(currentHistoryData, timelineTraitOrder, currentTraitColors);
+      }
     });
 
     function interpret(traits, dominance, dominantTrait) {
+      if (Object.keys(traits).length === 0) return "No trait data available.";
       let lines = Object.entries(traits).map(
-        ([k, v]) => `${k.padEnd(16)} ${v.toFixed(2)} (${dominance[k].toFixed(1)}%)`
-      );
-      let summary = `\nMost dominant trait: ${dominantTrait} (${dominance[dominantTrait].toFixed(1)}%)\n`;
-      summary += dominance[dominantTrait] > 60
-        ? "This trait is defining the soul right now."
-        : "The soul is balancing multiple influences.";
-      return lines.join('\n') + "\n\n" + summary;
+        ([k, v]) => `${k.padEnd(20)} ${v.toFixed(2)} (${(dominance[k] || 0).toFixed(1)}%)`
+      ).join('\n');
+      let summary = `\nMost dominant trait: ${dominantTrait} (${(dominance[dominantTrait] || 0).toFixed(1)}%)\n`;
+      summary += (dominance[dominantTrait] || 0) > 60
+        ? "This trait is strongly defining the soul right now."
+        : "The soul is currently balancing multiple influences.";
+      return lines + "\n\n" + summary;
     }
 
-    function updateBarPlot(traits, dominance) {
+    function updateBarPlot(traits, dominance, traitColors) {
+      if (Object.keys(traits).length === 0) {
+        Plotly.purge('barplot'); // Clear the plot if no data
+        return;
+      }
       let names = Object.keys(traits);
       let values = names.map(k => traits[k]);
-      let doms = names.map(k => dominance[k]);
-      let colors = names.map(k => doms[k] === Math.max(...doms) ? 'var(--accent)' : 'var(--accent2)');
-      let data = [{
-        x: names,
-        y: values,
-        type: 'bar',
-        marker: { color: colors },
+      let doms = names.map(k => dominance[k] || 0);
+      // Use traitColors for bars, fallback to accent colors if a color is missing
+      let barColors = names.map(k => traitColors[k] || (doms[k] === Math.max(...doms) ? 'var(--accent)' : 'var(--accent2)'));
+
+      let plotData = [{
+        x: names, y: values, type: 'bar',
+        marker: { color: barColors },
         text: doms.map(d => d.toFixed(1) + '%'),
         textposition: 'auto',
         hovertemplate: '%{x}: %{y:.2f} (%{text})<extra></extra>'
       }];
       let layout = {
-        title: 'Current Soul Traits',
-        yaxis: { range: [0, 1] },
-        plot_bgcolor: 'var(--bg)',
-        paper_bgcolor: 'var(--bg)',
-        font: { color: 'var(--fg)' }
+        title: 'Current Soul Traits & Dominance',
+        yaxis: { range: [0, 1.05], automargin: true }, // Increased range slightly
+        xaxis: { automargin: true, tickangle: -45 },
+        plot_bgcolor: getComputedStyle(document.body).getPropertyValue('--bg').trim(),
+        paper_bgcolor: getComputedStyle(document.body).getPropertyValue('--bg').trim(),
+        font: { color: getComputedStyle(document.body).getPropertyValue('--fg').trim() },
+        margin: { t: 50, b: 100, l: 50, r: 30 } // Adjusted margins
       };
-      Plotly.react('barplot', data, layout);
+      Plotly.react('barplot', plotData, layout);
     }
 
-    function updateTraitTable(traits, dominance, dominantTrait) {
+    function updateTraitTable(traits, dominance, dominantTrait, traitColors) {
       let table = document.getElementById('trait-table');
-      let rows = `<tr><th>Trait</th><th>Value</th><th>Dominance (%)</th></tr>`;
-      for (let k of Object.keys(traits)) {
-        let dom = dominance[k].toFixed(1);
+      if (!table) return;
+      let header = `<thead><tr><th>Trait</th><th>Value</th><th>Dominance (%)</th></tr></thead>`;
+      let bodyRows = Object.keys(traits).map(k => {
+        let dom = (dominance[k] || 0).toFixed(1);
         let rowClass = k === dominantTrait ? 'dominant' : '';
-        rows += `<tr class="${rowClass}"><td>${k}</td><td>${traits[k].toFixed(2)}</td><td>${dom}</td></tr>`;
-      }
-      table.innerHTML = rows;
+        // Apply color to trait name cell
+        let traitNameStyle = traitColors[k] ? `style="color: ${traitColors[k]}; font-weight: bold;"` : '';
+        return `<tr class="${rowClass}"><td ${traitNameStyle}>${k}</td><td>${traits[k].toFixed(2)}</td><td>${dom}</td></tr>`;
+      }).join('');
+      table.innerHTML = header + `<tbody>${bodyRows}</tbody>`;
     }
 
-    function updateDiscoveredTable(traitFirstSeen, traits, step) {
+    function updateDiscoveredTable(traitFirstSeen, currentTraits, currentStep, traitColors) {
       let table = document.getElementById('discovered-table');
-      let rows = `<tr><th>Trait</th><th>First Seen (Step)</th><th>Current Value</th></tr>`;
-      let allTraits = Object.keys(traitFirstSeen).sort((a, b) => traitFirstSeen[a] - traitFirstSeen[b]);
-      for (let k of allTraits) {
-        let val = traits[k] !== undefined ? traits[k].toFixed(2) : '—';
-        rows += `<tr><td>${k}</td><td>${traitFirstSeen[k]}</td><td>${val}</td></tr>`;
-      }
-      table.innerHTML = rows;
+      if (!table) return;
+      let header = `<thead><tr><th>Trait</th><th>First Seen (Step)</th><th>Age (Steps)</th><th>Current Value</th></tr></thead>`;
+      // Sort traits by when they were first seen
+      let allSeenTraits = Object.keys(traitFirstSeen).sort((a, b) => traitFirstSeen[a] - traitFirstSeen[b]);
+      
+      let bodyRows = allSeenTraits.map(k => {
+        let val = currentTraits[k] !== undefined ? currentTraits[k].toFixed(2) : '— (Removed)';
+        let age = currentTraits[k] !== undefined ? currentStep - traitFirstSeen[k] : '—';
+        // Apply color to trait name cell
+        let traitNameStyle = traitColors[k] ? `style="color: ${traitColors[k]}; font-weight: bold;"` : '';
+        return `<tr><td ${traitNameStyle}>${k}</td><td>${traitFirstSeen[k]}</td><td>${age}</td><td>${val}</td></tr>`;
+      }).join('');
+      table.innerHTML = header + `<tbody>${bodyRows}</tbody>`;
     }
+    
+    function updateTimeline(historyData, timelineTraitOrder, traitColors) {
+      let chartElement = document.getElementById('timeline-chart');
+      if (historyData.length === 0 || timelineTraitOrder.length === 0) {
+        Plotly.purge(chartElement); // Clear plot if no data
+        return;
+      }
 
-    function updateTimeline(history, traitNames) {
-      let z = history.map(snap => traitNames.map(t => snap[t] !== undefined ? snap[t] : null));
-      let data = [{
-        z: z,
-        x: traitNames,
-        y: Array.from({length: history.length}, (_, i) => i),
+      // Ensure z data is rectangular and handles missing traits correctly
+      let z_data = historyData.map(snap => 
+        timelineTraitOrder.map(traitName => snap[traitName] !== undefined ? snap[traitName] : null)
+      );
+
+      let plotData = [{
+        z: z_data,
+        x: timelineTraitOrder, // Trait names on x-axis
+        y: Array.from({length: historyData.length}, (_, i) => i), // Steps on y-axis
         type: 'heatmap',
-        colorscale: 'YlGnBu',
-        colorbar: { title: 'Value', tickvals: [0, 0.5, 1] },
-        hoverongaps: false
+        colorscale: 'Viridis', // Example colorscale
+        reversescale: true,
+        colorbar: { title: 'Trait Value', titleside: 'right', tickvals: [0, 0.25, 0.5, 0.75, 1], ticktext: ['0.0', '0.25', '0.5', '0.75', '1.0']},
+        hoverongaps: false,
+        xgap: 1, ygap: 1 // Add gaps between cells
       }];
       let layout = {
-        title: 'Trait Timeline (Heatmap)',
-        xaxis: { title: 'Trait' },
-        yaxis: { title: 'Step', autorange: 'reversed' },
-        plot_bgcolor: 'var(--bg)',
-        paper_bgcolor: 'var(--bg)',
-        font: { color: 'var(--fg)' },
-        margin: { t: 40 }
+        title: 'Trait Value Timeline (Heatmap)',
+        xaxis: { title: 'Trait', automargin: true, tickangle: -45 },
+        yaxis: { title: 'Simulation Step', autorange: 'reversed', automargin: true },
+        plot_bgcolor: getComputedStyle(document.body).getPropertyValue('--bg').trim(),
+        paper_bgcolor: getComputedStyle(document.body).getPropertyValue('--bg').trim(),
+        font: { color: getComputedStyle(document.body).getPropertyValue('--fg').trim() },
+        margin: { t: 50, b: 100, l: 60, r: 30 } // Adjusted margins
       };
-      Plotly.react('timeline', data, layout);
+      Plotly.react(chartElement, plotData, layout);
     }
 
-    function updateConversation(conversation) {
-      let div = document.getElementById('conversation');
-      div.innerHTML = conversation.map(msg => `
-        <div class="msg ${msg.speaker.toLowerCase()}">
+    function updateConversation(conversationLog) {
+      let div = document.getElementById('conversation-log');
+      if (!div) return;
+      div.innerHTML = conversationLog.map(msg => {
+        let speakerClass = (msg.speaker || 'unknown').toLowerCase().replace(/[\s\(\)]/g, '-'); // Sanitize speaker for class
+        if (speakerClass.startsWith('ai-')) speakerClass = speakerClass.replace('ai-','ai'); // Normalize
+        return `
+        <div class="msg ${speakerClass}">
           <div class="meta">${msg.speaker} &middot; ${new Date(msg.timestamp).toLocaleString()}</div>
-          <div class="text">${msg.text.replace(/\n/g, '<br>')}</div>
-        </div>
-      `).join('');
+          <div class="text">${(msg.text || "").replace(/\n/g, '<br>')}</div>
+        </div>`;
+      }).join('');
+      div.scrollTop = div.scrollHeight; // Scroll to bottom
     }
 
     document.getElementById('set-prompt-btn').onclick = async function() {
-      const prompt = document.getElementById('prompt-box').value;
-      const status = document.getElementById('prompt-status');
-      status.textContent = 'Setting...';
+      const customPrompt = document.getElementById('prompt-box').value;
+      const statusSpan = document.getElementById('prompt-status');
+      statusSpan.textContent = 'Setting custom prompt...';
+      statusSpan.style.color = 'var(--accent)';
       try {
-        const resp = await fetch('/set_prompt', {
+        const response = await fetch('/set_prompt', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt })
+          body: JSON.stringify({ prompt: customPrompt })
         });
-        if (resp.ok) {
-          status.textContent = 'Prompt set!';
+        const responseData = await response.json();
+        if (response.ok && responseData.status === 'ok') {
+          statusSpan.textContent = responseData.prompt_set_to === "default" ? 'Prompt cleared (using default).' : 'Custom prompt set!';
+          statusSpan.style.color = 'green';
         } else {
-          status.textContent = 'Failed to set prompt.';
+          statusSpan.textContent = `Error: ${responseData.message || 'Failed to set prompt.'}`;
+          statusSpan.style.color = 'red';
         }
-      } catch {
-        status.textContent = 'Failed to set prompt.';
+      } catch (e) {
+        statusSpan.textContent = 'Error: Failed to send prompt to server.';
+        statusSpan.style.color = 'red';
+        console.error("Fetch error for /set_prompt:", e);
       }
     };
   </script>
 </body>
-</html> 
+</html>
