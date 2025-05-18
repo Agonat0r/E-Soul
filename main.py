@@ -1,6 +1,5 @@
 import asyncio
 import random
-import numpy as np
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -36,12 +35,11 @@ async def soul_simulation():
         if len(traits) > 2 and random.random() < 0.05:
             to_remove = random.choice(list(traits.keys()))
             del traits[to_remove]
-        # Evolve all traits
+        # Evolve all traits (random walk, no target)
         for k in traits:
             traits[k] = min(1.0, max(0.0, traits[k] + random.uniform(-0.05, 0.05)))
         # Save snapshot (deep copy)
         history.append(traits.copy())
-        # Limit history length for memory
         if len(history) > 200:
             history = history[-200:]
         # Broadcast to all clients

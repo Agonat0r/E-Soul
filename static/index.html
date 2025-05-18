@@ -35,6 +35,8 @@
       max-width: 900px;
       margin: 0 auto;
       white-space: pre-line;
+      word-break: break-word;
+      overflow-wrap: break-word;
     }
   </style>
 </head>
@@ -50,9 +52,14 @@
     let ws = new WebSocket("wss://" + window.location.host + "/ws");
 
     function interpret(traits, dominance, dominantTrait) {
-      let lines = Object.entries(traits).map(([k, v]) => `${k.padEnd(16)} ${v.toFixed(2)} (${dominance[k].toFixed(1)}%)`);
-      let summary = `Most dominant trait: ${dominantTrait} (${dominance[dominantTrait].toFixed(1)}%)\n`;
-      summary += dominance[dominantTrait] > 60 ? "🌟 This trait is defining the soul right now!" : "The soul is balancing multiple influences.";
+      let lines = Object.entries(traits).map(
+        ([k, v]) => `${k.padEnd(16)} ${v.toFixed(2)} (${dominance[k].toFixed(1)}%)`
+      );
+      let summary = `\nMost dominant trait: ${dominantTrait} (${dominance[dominantTrait].toFixed(1)}%)\n`;
+      summary += dominance[dominantTrait] > 60
+        ? "This trait is defining the soul right now."
+        : "The soul is balancing multiple influences.";
+      // Add a blank line between the trait list and the summary
       return lines.join('\n') + "\n\n" + summary;
     }
 
