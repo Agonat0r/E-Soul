@@ -3,9 +3,10 @@ import random
 import os
 import requests
 from datetime import datetime
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 import numpy as np
@@ -30,16 +31,20 @@ conversation_history = []  # List of dicts: {speaker, text, timestamp}
 trait_first_seen = {k: 0 for k in initial_traits}  # trait name -> step first seen
 
 clients = set()
+user_prompt = None  # Global variable to store user-supplied prompt
 
+# --- Reflection functions ---
 def generate_hf_reflection(traits):
     api_key = os.getenv("HF_API_KEY")
     if not api_key:
         return "No Hugging Face API key set."
-    prompt = (
+    default_prompt = (
         "Given these soul traits and their values:\n" +
         "\n".join(f"{k}: {v:.2f}" for k, v in traits.items()) +
-        "\nWrite a short, unbiased, philosophical reflection on this soul's current state."
+        "\nImagine you are a human soul, alone in infinite darkness, with no sensory input, on the edge of sanity. "
+        "Write a short, emotionally raw, subjective, and biased philosophical reflection on this soul's current state, as a human might experience it."
     )
+    prompt = user_prompt if user_prompt else default_prompt
     headers = {"Authorization": f"Bearer {api_key}"}
     payload = {
         "inputs": prompt,
@@ -47,7 +52,7 @@ def generate_hf_reflection(traits):
     }
     try:
         response = requests.post(
-            "https://api-inference.huggingface.co/models/bigscience/bloom",
+            "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
             headers=headers, json=payload, timeout=10
         )
         if response.status_code == 200:
@@ -62,17 +67,26 @@ def generate_gemini_reflection(traits):
     if not api_key:
         return "No Gemini API key set."
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("models/gemini-2.0-pro")
-    prompt = (
+    default_prompt = (
         "Given these soul traits and their values:\n" +
         "\n".join(f"{k}: {v:.2f}" for k, v in traits.items()) +
-        "\nWrite a short, unbiased, philosophical reflection on this soul's current state."
+        "\nImagine you are a human soul, alone in infinite darkness, with no sensory input, on the edge of sanity. "
+        "Write a short, emotionally raw, subjective, and biased philosophical reflection on this soul's current state, as a human might experience it."
     )
+    prompt = user_prompt if user_prompt else default_prompt
     try:
+        model = genai.GenerativeModel("models/gemini-2.0-pro")
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception:
         return "Gemini reflection unavailable."
+
+@app.post("/set_prompt")
+async def set_prompt(request: Request):
+    global user_prompt
+    data = await request.json()
+    user_prompt = data.get("prompt", None)
+    return JSONResponse({"status": "ok", "prompt": user_prompt})
 
 async def soul_simulation():
     global traits, history, conversation_history, trait_first_seen
