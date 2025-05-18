@@ -14,6 +14,8 @@ import numpy as np
 import google.generativeai as genai
 import google.api_core.exceptions 
 import traceback
+import tensorflow as tf
+from tensorflow import keras
 
 # Your FastAPI application instance
 app = FastAPI()
@@ -434,6 +436,38 @@ async def suggest_code(request: Request):
         return JSONResponse({"status": "ok", "code": response.text.strip()})
     except Exception as e:
         return JSONResponse({"status": "error", "error": str(e)}, status_code=400)
+
+# --- Device Probing and System Identification ---
+@app.post("/probe_device")
+async def probe_device(request: Request):
+    data = await request.json()
+    test_signals = data.get('test_signals', [])  # List of input signals
+    responses = data.get('responses', [])        # List of observed outputs
+    # For now, use Gemini to analyze the data
+    prompt = (
+        "You are an expert in electronics and system identification. "
+        "Given the following test signals and observed responses from probing an unknown device, "
+        "analyze the data and suggest what type of device this might be (e.g., sensor, actuator, communication module, etc.), "
+        "and describe its likely behavior.\n"
+        f"Test signals: {test_signals}\nResponses: {responses}"
+    )
+    try:
+        model = genai.GenerativeModel("models/gemini-2.0-flash")
+        response = model.generate_content(prompt)
+        return JSONResponse({"status": "ok", "analysis": response.text.strip()})
+    except Exception as e:
+        return JSONResponse({"status": "error", "error": str(e)}, status_code=400)
+
+# --- Sample TensorFlow Model Structure for System Identification ---
+def build_system_id_model(num_features, num_outputs):
+    model = keras.Sequential([
+        keras.layers.LSTM(64, input_shape=(None, num_features), return_sequences=True),
+        keras.layers.Dense(num_outputs)
+    ])
+    model.compile(optimizer='adam', loss='mse')
+    return model
+# To train: model.fit(X_train, y_train, epochs=10)
+# To predict: model.predict(X_test)
 
 if __name__=="__main__":
     import uvicorn;mn="chatbot";p=int(os.getenv("PORT",10000))
