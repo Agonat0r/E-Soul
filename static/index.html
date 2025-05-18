@@ -5,12 +5,73 @@
   <title>Soul Trait Evolution (Live)</title>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <style>
-    body { background:#23272e; color:#e0e0e0; font-family:sans-serif; }
+    :root {
+      --bg: #f6f8fa;
+      --fg: #222;
+      --panel: #fff;
+      --panel-alt: #e9eef3;
+      --accent: #4a90e2;
+      --accent2: #b2c7e1;
+      --table-header: #e9eef3;
+      --table-row: #f6f8fa;
+      --dominant: #e3f2fd;
+      --msg-ai1: #e3f2fd;
+      --msg-ai2: #fce4ec;
+      --msg-meta: #7b8a99;
+    }
+    body.soft-blue {
+      --bg: #eaf3fb;
+      --fg: #223344;
+      --panel: #f7fbff;
+      --panel-alt: #dbeafe;
+      --accent: #4a90e2;
+      --accent2: #b2c7e1;
+      --table-header: #dbeafe;
+      --table-row: #eaf3fb;
+      --dominant: #b3e5fc;
+      --msg-ai1: #b3e5fc;
+      --msg-ai2: #e1bee7;
+      --msg-meta: #607d8b;
+    }
+    body.solarized {
+      --bg: #fdf6e3;
+      --fg: #657b83;
+      --panel: #f5eecb;
+      --panel-alt: #eee8d5;
+      --accent: #268bd2;
+      --accent2: #b58900;
+      --table-header: #eee8d5;
+      --table-row: #fdf6e3;
+      --dominant: #b58900;
+      --msg-ai1: #eee8d5;
+      --msg-ai2: #f5eecb;
+      --msg-meta: #657b83;
+    }
+    body.pastel {
+      --bg: #f8f7fa;
+      --fg: #4b3f72;
+      --panel: #f3e8ff;
+      --panel-alt: #e0c3fc;
+      --accent: #a3cef1;
+      --accent2: #f9c6c9;
+      --table-header: #e0c3fc;
+      --table-row: #f8f7fa;
+      --dominant: #f9c6c9;
+      --msg-ai1: #e0c3fc;
+      --msg-ai2: #f9c6c9;
+      --msg-meta: #4b3f72;
+    }
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: sans-serif;
+      transition: background 0.3s, color 0.3s;
+    }
     .tabs { display: flex; margin-bottom: 20px; }
     .tab {
       padding: 12px 28px;
-      background: #2c313a;
-      color: #b0c4d4;
+      background: var(--panel-alt);
+      color: var(--fg);
       border-radius: 8px 8px 0 0;
       margin-right: 6px;
       cursor: pointer;
@@ -20,16 +81,16 @@
       transition: background 0.2s, color 0.2s;
     }
     .tab.active {
-      background: #3a4151;
-      color: #fff;
+      background: var(--panel);
+      color: var(--accent);
     }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
     #barplot { width:900px; height:350px; margin-bottom: 30px; }
     #timeline { width:900px; height:300px; margin-bottom: 30px; }
     #trait-table, #discovered-table {
-      background: #2c313a;
-      color: #e0e0e0;
+      background: var(--panel);
+      color: var(--fg);
       font-family: 'Courier New', Courier, monospace;
       border-radius: 8px;
       max-width: 900px;
@@ -39,15 +100,15 @@
       box-shadow: 0 2px 8px #0002;
     }
     #trait-table th, #trait-table td, #discovered-table th, #discovered-table td {
-      border: 1px solid #3a4151;
+      border: 1px solid var(--panel-alt);
       padding: 8px 12px;
       text-align: left;
     }
-    #trait-table th, #discovered-table th { background: #3a4151; color: #aee1f9; }
-    #trait-table tr.dominant { background: #2e3a2c; }
+    #trait-table th, #discovered-table th { background: var(--table-header); color: var(--accent); }
+    #trait-table tr.dominant { background: var(--dominant); }
     #terminal {
-      background: #2c313a;
-      color: #aee1f9;
+      background: var(--panel);
+      color: var(--accent);
       font-family: 'Courier New', Courier, monospace;
       padding: 20px;
       border-radius: 8px;
@@ -60,8 +121,8 @@
       box-shadow: 0 2px 8px #0002;
     }
     #conversation {
-      background: #2c313a;
-      color: #e0e0e0;
+      background: var(--panel);
+      color: var(--fg);
       font-family: 'Courier New', Courier, monospace;
       border-radius: 8px;
       max-width: 900px;
@@ -74,15 +135,25 @@
       margin-bottom: 18px;
       padding: 10px 16px;
       border-radius: 6px;
-      background: #31363f;
-      color: #e0e0e0;
+      background: var(--panel-alt);
+      color: var(--fg);
       max-width: 80%;
       box-shadow: 0 1px 4px #0001;
     }
-    .msg.ai1 { background: #3a4151; color: #aee1f9; align-self: flex-start; }
-    .msg.ai2 { background: #2e3a2c; color: #e0e0e0; align-self: flex-end; }
-    .msg .meta { font-size: 0.9em; color: #b0c4d4; margin-bottom: 4px; }
+    .msg.ai1 { background: var(--msg-ai1); color: var(--accent); align-self: flex-start; }
+    .msg.ai2 { background: var(--msg-ai2); color: var(--fg); align-self: flex-end; }
+    .msg .meta { font-size: 0.9em; color: var(--msg-meta); margin-bottom: 4px; }
     .msg .text { white-space: pre-line; }
+    .theme-select {
+      margin: 20px 0 0 0;
+      padding: 10px 16px;
+      font-size: 1em;
+      border-radius: 6px;
+      border: 1px solid var(--panel-alt);
+      background: var(--panel);
+      color: var(--fg);
+      outline: none;
+    }
   </style>
 </head>
 <body>
@@ -91,6 +162,7 @@
     <button class="tab active" onclick="showTab('traits')">Traits Table</button>
     <button class="tab" onclick="showTab('timeline')">Timeline</button>
     <button class="tab" onclick="showTab('conversation')">Conversation</button>
+    <button class="tab" onclick="showTab('customization')">Customization</button>
   </div>
   <div id="traits" class="tab-content active">
     <div id="barplot"></div>
@@ -103,6 +175,15 @@
   </div>
   <div id="conversation" class="tab-content">
     <div id="conversation"></div>
+  </div>
+  <div id="customization" class="tab-content">
+    <label for="theme-select"><b>Choose a theme:</b></label>
+    <select id="theme-select" class="theme-select">
+      <option value="">Light (Default)</option>
+      <option value="soft-blue">Soft Blue</option>
+      <option value="solarized">Solarized</option>
+      <option value="pastel">Pastel</option>
+    </select>
   </div>
   <script>
     let history = [];
@@ -121,6 +202,10 @@
       document.getElementById(tab).classList.add('active');
     }
 
+    document.getElementById('theme-select').addEventListener('change', function() {
+      document.body.className = this.value;
+    });
+
     function interpret(traits, dominance, dominantTrait) {
       let lines = Object.entries(traits).map(
         ([k, v]) => `${k.padEnd(16)} ${v.toFixed(2)} (${dominance[k].toFixed(1)}%)`
@@ -136,7 +221,7 @@
       let names = Object.keys(traits);
       let values = names.map(k => traits[k]);
       let doms = names.map(k => dominance[k]);
-      let colors = names.map(k => doms[k] === Math.max(...doms) ? '#aee1f9' : '#6b7a8f');
+      let colors = names.map(k => doms[k] === Math.max(...doms) ? 'var(--accent)' : 'var(--accent2)');
       let data = [{
         x: names,
         y: values,
@@ -149,9 +234,9 @@
       let layout = {
         title: 'Current Soul Traits',
         yaxis: { range: [0, 1] },
-        plot_bgcolor: '#23272e',
-        paper_bgcolor: '#23272e',
-        font: { color: '#e0e0e0' }
+        plot_bgcolor: 'var(--bg)',
+        paper_bgcolor: 'var(--bg)',
+        font: { color: 'var(--fg)' }
       };
       Plotly.react('barplot', data, layout);
     }
@@ -193,9 +278,9 @@
         title: 'Trait Timeline (Heatmap)',
         xaxis: { title: 'Trait' },
         yaxis: { title: 'Step', autorange: 'reversed' },
-        plot_bgcolor: '#23272e',
-        paper_bgcolor: '#23272e',
-        font: { color: '#e0e0e0' },
+        plot_bgcolor: 'var(--bg)',
+        paper_bgcolor: 'var(--bg)',
+        font: { color: 'var(--fg)' },
         margin: { t: 40 }
       };
       Plotly.react('timeline', data, layout);
